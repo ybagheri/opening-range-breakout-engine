@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.4.0] — 2026-10-06
+
+### Added — trailing-stop variants (next roadmap phase)
+- `risk/trailing.py`: R-based `TrailingStop` (trigger/offset in multiples of initial risk,
+  protective-only ratchet, composes with breakeven by most-protective-wins).
+- Settings `TRAIL_ENABLED` / `TRAIL_TRIGGER_R=1.5` / `TRAIL_OFFSET_R=0.5` (+ validation, `.env`).
+- Backtest `_simulate` trails the stop bar-by-bar (documented intrabar order) and reports
+  `TRAIL_STOP` exits + `trail_used`; live `manage_open` trails per-tick quotes with the same
+  ratchet, keyed on initial risk recorded at fill (restart falls back to current SL, logged).
+- 6 new tests (61 total): trigger math, ratchet direction, validation, TRAIL_STOP path,
+  live trail-up/never-retreat, BE+trail composition.
+
+### Observed (US30 M5, 36 sessions — selection is IN-SAMPLE, read with care)
+- TR1.5-0.5: +35R, win 64%, PF 3.69, dropBest5 +9.6; TR1.0-0.5: +29.4R; OPP-noBE: +21R.
+  Monthly splits positive for all variants in Aug/Sep/Oct (tiny samples).
+- Caution: 3 configs tried, best reported — real validation needs fresh out-of-sample data.
+  Defaults stay conservative (trail OFF) until then.
+
 ## [1.3.0] — 2026-10-06
 
 ### Added — ATR stops end-to-end (next roadmap phase, validated on fresh data)

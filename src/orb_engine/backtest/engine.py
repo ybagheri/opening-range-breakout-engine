@@ -132,7 +132,7 @@ class BacktestEngine:
                     i += 1
                     continue
                 # simulate forward
-                exit_px, exit_t, reason, be_used = self._simulate(
+                exit_px, exit_t, reason, be_used, trail_used = self._simulate(
                     post[entry_bar_idx:], direction, entry, stop, tp, fclose)
                 r_mult = ((exit_px - entry) if direction == Direction.LONG else (entry - exit_px)) / risk
                 # fixed-fractional pnl in R * risk_amount where risk_amount = 1 unit of R on fixed $ risk
@@ -146,7 +146,7 @@ class BacktestEngine:
                     "entry": entry, "stop": stop, "target": tp, "atr": atr,
                     "exit_time": exit_t, "exit_price": exit_px,
                     "exit_reason": reason.value, "r_multiple": r_mult,
-                    "breakeven_used": be_used,
+                    "breakeven_used": be_used, "trail_used": trail_used,
                     "commission": self.s.backtest_commission,
                 })
                 n_trades += 1
@@ -154,33 +154,63 @@ class BacktestEngine:
         return trades
 
     def _simulate(self, bars, direction, entry, stop, tp, fclose):
-        be_trigger = self.s.breakeven_trigger_r * abs(entry - stop) if self.s.breakeven_enabled else None
+        from orb_engine.risk.trailing import TrailingStop
+        risk = abs(entry - stop)
+        trail = TrailingStop(self.s.trail_enabled, self.s.trail_trigger_r,
+                             self.s.trail_offset_r)
+        be_trigger = self.s.breakeven_trigger_r * risk if self.s.breakeven_enabled else None
         be_used = False
+        trail_used = False
         cur_stop = stop
+        extreme = entry
         for b in bars:
             if fclose is not None and b.timestamp >= fclose:
                 px = b.open
-                return px, b.timestamp, ExitReason.FORCE_CLOSE, be_used
-            # breakeven update on close basis
-            if be_trigger is not None and not be_used:
-                fav = (b.high - entry) if direction == Direction.LONG else (entry - b.low)
-                if fav >= be_trigger:
-                    cur_stop = entry
+                return px, b.timestamp, ExitReason.FORCE_CLOSE, be_used, trail_used
+            # favorable extreme first, then protective candidates (documented order:
+            # the stop may move up on the same bar whose low later stops us out —
+            # conservative, since the exit is at the improved level)
+            if direction == Direction.LONG:
+                extreme = max(extreme, b.high)
+                fav = extreme - entry
+            else:
+                extreme = min(extreme, b.low)
+                fav = entry - extreme
+            be_level = entry if (be_trigger is not None and not be_used
+                                 and fav >= be_trigger) else None
+            trail_level = trail.candidate(direction, entry, extreme, risk)
+            new_stop = TrailingStop.ratchet(direction, cur_stop, [be_level, trail_level])
+            if new_stop != cur_stop:
+                if be_level is not None and new_stop == be_level:
                     be_used = True
+                if trail_level is not None and new_stop == trail_level \
+                        and trail_level != be_level:
+                    trail_used = True
+                cur_stop = new_stop
             sl_hit = (b.low <= cur_stop) if direction == Direction.LONG else (b.high >= cur_stop)
             tp_hit = (b.high >= tp) if direction == Direction.LONG else (b.low <= tp)
             if sl_hit and tp_hit:
                 pol = self.s.intrabar_policy
                 if pol in ("conservative", "stop_first"):
-                    return cur_stop, b.timestamp, (ExitReason.BREAKEVEN_STOP if be_used and cur_stop == entry else ExitReason.STOP_LOSS), be_used
-                else:
-                    return tp, b.timestamp, ExitReason.TAKE_PROFIT, be_used
+                    return cur_stop, b.timestamp, self._stop_reason(
+                        cur_stop, entry, stop, be_used, trail_used), be_used, trail_used
+                return tp, b.timestamp, ExitReason.TAKE_PROFIT, be_used, trail_used
             if sl_hit:
-                return cur_stop, b.timestamp, (ExitReason.BREAKEVEN_STOP if be_used and cur_stop == entry else ExitReason.STOP_LOSS), be_used
+                return cur_stop, b.timestamp, self._stop_reason(
+                    cur_stop, entry, stop, be_used, trail_used), be_used, trail_used
             if tp_hit:
-                return tp, b.timestamp, ExitReason.TAKE_PROFIT, be_used
+                return tp, b.timestamp, ExitReason.TAKE_PROFIT, be_used, trail_used
         last = bars[-1]
-        return last.close, last.timestamp, ExitReason.END_OF_DATA, be_used
+        return last.close, last.timestamp, ExitReason.END_OF_DATA, be_used, trail_used
+
+    @staticmethod
+    def _stop_reason(cur_stop: float, entry: float, original_stop: float,
+                     be_used: bool, trail_used: bool) -> ExitReason:
+        if cur_stop == entry and (be_used or trail_used):
+            return ExitReason.BREAKEVEN_STOP
+        if trail_used and cur_stop != original_stop:
+            return ExitReason.TRAIL_STOP
+        return ExitReason.STOP_LOSS
 
     def _equity_curve(self, trades: list[dict]) -> pd.Series:
         import pandas as pd

@@ -20,7 +20,7 @@
   tick-volume confirmation does not transfer from equities to CFD brokers; engine is price-only
 - [ ] Retest confirmation filter (deferred entry on level retest)
 - [x] ATR stop end-to-end (Wilder ATR, backtest + live, refusal on missing ATR) — v1.3.0
-- [ ] Trailing-stop variants
+- [x] Trailing-stop variants (R-based, ratchet, BE composition, TRAIL_STOP reason) — v1.4.0
 - [ ] Multi-timeframe OR (5/15/30/60 min presets via config)
 - [ ] Live dashboard / web observability
 - [ ] MT5 integration tests against a demo terminal in CI (Windows runner)

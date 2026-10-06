@@ -12,6 +12,7 @@ from orb_engine.risk.daily_limits import DailyRiskGuard
 from orb_engine.risk.sizing import position_size
 from orb_engine.risk.stop_loss import StopLossCalculator
 from orb_engine.risk.take_profit import TakeProfitCalculator
+from orb_engine.risk.trailing import TrailingStop
 
 log = logging.getLogger("orb_engine.execution")
 
@@ -28,9 +29,14 @@ class TradeManager:
                                             settings.risk_reward)
         self.be = BreakEvenManager(settings.breakeven_enabled, settings.breakeven_trigger_r,
                                    settings.breakeven_buffer_points)
+        self.trail = TrailingStop(settings.trail_enabled, settings.trail_trigger_r,
+                                  settings.trail_offset_r)
         self.guard = DailyRiskGuard(settings.max_trades_per_symbol_per_day,
                                     settings.max_total_trades_per_day,
                                     settings.max_daily_loss_percent)
+        # ticket -> stop at fill (initial risk basis). After a restart, rebuilt from
+        # the current SL as a conservative fallback (trigger then measures remaining risk).
+        self._initial_stops: dict[int, float] = {}
 
     def _trade_identity(self, sig: TradeSignal) -> str:
         return f"{self.STRATEGY}|{sig.symbol}|{sig.session_date}|{sig.signal_time.isoformat()}"
@@ -89,6 +95,8 @@ class TradeManager:
         res = self.broker.place_market_order(req)
         if res.status == OrderStatus.FILLED:
             self.guard.record_fill(sig.session_date, sig.symbol)
+            if res.ticket is not None:
+                self._initial_stops[res.ticket] = req.stop_loss
             if self.state:
                 self.state.mark_traded(sig.symbol, sig.session_date, res.ticket, direction.value)
             return {"action": "filled", "ticket": res.ticket, "request": req, "size": size}
@@ -96,7 +104,11 @@ class TradeManager:
         return {"action": "rejected", "reason": res.message, "request": req}
 
     def manage_open(self, ticket_prices: dict[int, float]) -> list[dict]:
-        """Apply breakeven moves; ticket_prices: ticket -> current price. Returns actions."""
+        """Apply breakeven + trailing moves; ticket_prices: ticket -> current price.
+
+        The current quote stands in for the running extreme: under regular polling
+        the ratchet makes this exact (the stop only ever moves protectively, so
+        successive quotes trace the extreme). Returns action dicts."""
         actions = []
         for pos in self.broker.open_positions(magic=self.s.magic):
             cur = ticket_prices.get(pos.ticket)
@@ -104,12 +116,26 @@ class TradeManager:
                 continue
             info = self.broker.symbol_info(pos.symbol)
             pt = info.point if info else 0.01
-            if self.be.should_trigger(pos.direction, pos.entry_price, cur, pos.stop_loss):
-                new_sl = self.be.new_stop(pos.direction, pos.entry_price, pt)
-                # avoid moving SL backwards
-                if (pos.direction == Direction.LONG and new_sl > pos.stop_loss) or \
-                   (pos.direction == Direction.SHORT and new_sl < pos.stop_loss):
-                    ok = self.broker.modify_position_sltp(pos.ticket, new_sl, pos.take_profit)
-                    actions.append({"ticket": pos.ticket, "breakeven": ok, "new_sl": new_sl})
-                    log.info("BREAKEVEN ticket=%s new_sl=%s ok=%s", pos.ticket, new_sl, ok)
+            initial = self._initial_stops.setdefault(pos.ticket, pos.stop_loss)
+            risk = abs(pos.entry_price - initial)
+            if risk <= 0:
+                continue
+            be_level = None
+            if self.be.should_trigger(pos.direction, pos.entry_price, cur, initial):
+                be_level = self.be.new_stop(pos.direction, pos.entry_price, pt)
+            trail_level = self.trail.candidate(pos.direction, pos.entry_price, cur, risk)
+            new_sl = TrailingStop.ratchet(pos.direction, pos.stop_loss, [be_level, trail_level])
+            # avoid moving SL backwards
+            if (pos.direction == Direction.LONG and new_sl > pos.stop_loss) or \
+               (pos.direction == Direction.SHORT and new_sl < pos.stop_loss):
+                ok = self.broker.modify_position_sltp(pos.ticket, new_sl, pos.take_profit)
+                actions.append({"ticket": pos.ticket, "breakeven": ok and be_level is not None
+                                and new_sl == be_level,
+                                "trail": ok and trail_level is not None
+                                and new_sl == trail_level and trail_level != be_level,
+                                "new_sl": new_sl})
+                log.info("MANAGE ticket=%s new_sl=%s ok=%s be=%s trail=%s", pos.ticket,
+                         new_sl, ok, be_level is not None and new_sl == be_level,
+                         trail_level is not None and new_sl == trail_level
+                         and trail_level != be_level)
         return actions

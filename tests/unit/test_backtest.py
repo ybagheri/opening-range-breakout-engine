@@ -45,7 +45,7 @@ def test_conservative_intrabar_prefers_stop():
     eng = BacktestEngine(_settings())
     Z = ZoneInfo("America/New_York")
     both = Bar("TST", datetime(2024,1,2,10,5,tzinfo=Z), 100, 115, 90, 102)
-    px, tm, reason, be = eng._simulate([both], Direction.LONG, 100, 95, 110, None)
+    px, tm, reason, be, tr = eng._simulate([both], Direction.LONG, 100, 95, 110, None)
     assert reason == ExitReason.STOP_LOSS
 
 def test_empty_data_no_crash():

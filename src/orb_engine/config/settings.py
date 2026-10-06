@@ -59,6 +59,9 @@ class Settings:
     stop_loss_mode: str = "opposite"
     stop_loss_value: float = 1.0
     atr_period: int = 14
+    trail_enabled: bool = False
+    trail_trigger_r: float = 1.5
+    trail_offset_r: float = 0.5
     take_profit_mode: str = "risk_reward"
     take_profit_value: float = 2.0
     risk_reward: float = 2.0
@@ -128,6 +131,9 @@ def load_settings() -> Settings:
         stop_loss_mode=_get("STOP_LOSS_MODE", "opposite").lower(),
         stop_loss_value=_get_float("STOP_LOSS_VALUE", 1.0),
         atr_period=_get_int("ATR_PERIOD", 14),
+        trail_enabled=_get_bool("TRAIL_ENABLED", False),
+        trail_trigger_r=_get_float("TRAIL_TRIGGER_R", 1.5),
+        trail_offset_r=_get_float("TRAIL_OFFSET_R", 0.5),
         take_profit_mode=_get("TAKE_PROFIT_MODE", "risk_reward").lower(),
         take_profit_value=_get_float("TAKE_PROFIT_VALUE", 2.0),
         risk_reward=_get_float("RISK_REWARD", 2.0),
@@ -165,6 +171,10 @@ def validate_settings(s: Settings) -> list[str]:
         errors.append(f"Unknown STOP_LOSS_MODE: {s.stop_loss_mode}")
     if s.atr_period < 1:
         errors.append(f"ATR_PERIOD must be >= 1, got {s.atr_period}")
+    if s.trail_enabled and s.trail_trigger_r <= 0:
+        errors.append("TRAIL_TRIGGER_R must be > 0 when TRAIL_ENABLED=true")
+    if s.trail_enabled and s.trail_offset_r < 0:
+        errors.append("TRAIL_OFFSET_R must be >= 0 when TRAIL_ENABLED=true")
     if s.take_profit_mode not in ("risk_reward", "or_width_multiple", "fixed_points"):
         errors.append(f"Unknown TAKE_PROFIT_MODE: {s.take_profit_mode}")
     try:

@@ -1,7 +1,7 @@
 # Project Handoff
 
 Current Phase: Phase 13 — Documentation and final audit
-Status: v1.3.0 (ATR stops end-to-end; fresh-data research)
+Status: v1.4.0 (trailing stops; fresh-data research)
 
 Completed: Phases 1–13 (all boxes in ROADMAP.md checked).
 
@@ -17,7 +17,11 @@ Implemented:
   with startup recovery + force-close).
 - Persistence (SQLite state + journal), reporting (config-hash reports), CLI (6 commands).
 
-Tests: `pytest` — 55 passed. `ruff`/`mypy` clean.
+Tests: `pytest` — 61 passed. `ruff`/`mypy` clean.
+### v1.4.0 additions
+- R-based trailing stop (`risk/trailing.py`) in backtest + live `manage_open`, TRAIL_STOP
+  exit reason, `TRAIL_*` settings. Best in-sample trail config (1.5/0.5) kept OFF by default
+  pending out-of-sample proof — do not enable by default without new data.
 ### v1.3.0 additions
 - Wilder ATR (`risk/indicators.py`) + ATR stop mode wired through backtest, live engine,
   TradeManager refusal discipline, `ATR_PERIOD` setting, `TradeSignal.atr`.
