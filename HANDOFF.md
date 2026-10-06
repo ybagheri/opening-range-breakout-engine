@@ -25,6 +25,10 @@ Tests: `pytest` — 75 passed, 5 MT5-terminal tests skip without a terminal. `ru
 ### Unreleased research
 - Retest study (`scripts/research_retest.py`): no evidence for deferred entry — retest
   filter remains research-only/code-free. FA README refreshed to v1.7.
+- OOS stability study (`scripts/research_oos.py`): chronological 23/23-session halves
+  (18 tradeable each). Trail15_05 ranks #2/#1 (top-2 both halves), noBE beats BE both
+  halves, ATR swings #1 → #4. Modest stability signal for trailing, none strong enough
+  to change defaults — trail stays OFF pending fresh data. FA README at v1.8.
 ### v1.7.0 additions
 - Terminal-gated integration suite + CI workflows. To verify live: Windows + demo terminal,
   `MT5_RUN_LIVE_TESTS=1 pytest tests/integration/test_mt5_terminal.py -v`. Suite never trades.

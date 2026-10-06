@@ -17,6 +17,15 @@
   immediate-entry +21R/36t; straight-run group too tiny (n=5) to judge. NO evidence for a
   retest gate — stays code-free per project discipline.
 - `docs/README_FA.md` refreshed to v1.7.0 feature set.
+- `scripts/research_oos.py`: chronological half-split stability check (46 sessions →
+  23/23 halves, 18 tradeable each; day-split, per-block ATR warm-up, same costs).
+  Full-sample ranks reproduce prior notes (TR1.5-0.5 +35R, TR1.0-0.5 +29.4R,
+  OPP-noBE +21R ~= ATR1.5-noBE +21R, BE +12R). Across halves: trail15_05 ranks
+  #2/#1 (top-2 both), noBE beats BE both halves, BE last both halves, ATR swings
+  #1 → #4. Modest stability signal for trailing, anti-signal for BE, instability
+  flag for ATR — but n=18/half is far too small to change anything: trail stays
+  OFF by default pending genuinely fresh out-of-sample data. Neither half is truly
+  unseen (picks were selected on the full sample), so this is stability, not proof.
 
 ## [1.7.0] — 2026-10-06
 
