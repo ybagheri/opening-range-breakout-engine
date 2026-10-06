@@ -25,7 +25,6 @@ from orb_engine.backtest.engine import BacktestEngine
 from orb_engine.config.settings import Settings
 from orb_engine.core.types import Direction
 from orb_engine.data.models import bars_from_df
-from orb_engine.utils.time_utils import combine_market_time
 
 DATA = "data/US30_M5.csv"
 TOUCH_BARS = 3
