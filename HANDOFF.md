@@ -18,6 +18,9 @@ Implemented:
 - Persistence (SQLite state + journal), reporting (config-hash reports), CLI (6 commands).
 
 Tests: `pytest` — all pass, 5 MT5-terminal tests skip without a terminal. `ruff`/`mypy` clean.
+### Unreleased research
+- Retest study (`scripts/research_retest.py`): no evidence for deferred entry — retest
+  filter remains research-only/code-free. FA README refreshed to v1.7.
 ### v1.7.0 additions
 - Terminal-gated integration suite + CI workflows. To verify live: Windows + demo terminal,
   `MT5_RUN_LIVE_TESTS=1 pytest tests/integration/test_mt5_terminal.py -v`. Suite never trades.

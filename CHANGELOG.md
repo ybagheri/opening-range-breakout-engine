@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] — retest hypothesis study (research only, no engine change)
+- `scripts/research_retest.py`: on 36 US30 sessions, 31/36 breakouts retest within 3 bars
+  (retest is the norm, not a filter); deferred-after-retest entry scores +12R/31t vs
+  immediate-entry +21R/36t; straight-run group too tiny (n=5) to judge. NO evidence for a
+  retest gate — stays code-free per project discipline.
+- `docs/README_FA.md` refreshed to v1.7.0 feature set.
+
 ## [1.7.0] — 2026-10-06
 
 ### Added — MT5 integration suite + CI (last open code phase)
