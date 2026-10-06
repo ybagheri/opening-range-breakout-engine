@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
 
@@ -64,6 +64,8 @@ class Settings:
     breakout_buffer_points: float = 0.0
     breakout_buffer_pct_of_or: float = 0.0
     breakout_require_close: bool = False
+    volume_filter_enabled: bool = False
+    volume_min_rvol: float = 1.2
     breakeven_enabled: bool = True
     breakeven_trigger_r: float = 1.0
     breakeven_buffer_points: float = 0.0
@@ -77,6 +79,7 @@ class Settings:
     state_db: str = "data/orb_state.sqlite"
     journal_db: str = "data/orb_journal.sqlite"
     log_level: str = "INFO"
+    point_overrides: dict[str, float] = field(default_factory=dict)
 
     def config_hash(self) -> str:
         payload = json.dumps(self.public_dict(), sort_keys=True)
@@ -86,6 +89,20 @@ class Settings:
         d = {k: v for k, v in self.__dict__.items() if "password" not in k}
         d["symbols"] = list(self.symbols)
         return d
+
+
+def _parse_point_overrides(raw: str) -> dict[str, float]:
+    """Parse e.g. "US30:1.0,US500:0.25" into {symbol: point}. Empty -> {}."""
+    out: dict[str, float] = {}
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if ":" not in part:
+            raise ValueError(f"POINT_OVERRIDES entry must be SYMBOL:point, got {part!r}")
+        sym, val = part.split(":", 1)
+        out[sym.strip().upper()] = float(val)
+    return out
 
 
 def load_settings() -> Settings:
@@ -117,6 +134,8 @@ def load_settings() -> Settings:
         breakout_buffer_points=_get_float("BREAKOUT_BUFFER_POINTS", 0.0),
         breakout_buffer_pct_of_or=_get_float("BREAKOUT_BUFFER_PCT_OF_OR", 0.0),
         breakout_require_close=_get_bool("BREAKOUT_REQUIRE_CLOSE", False),
+        volume_filter_enabled=_get_bool("VOLUME_FILTER_ENABLED", False),
+        volume_min_rvol=_get_float("VOLUME_MIN_RVOL", 1.2),
         breakeven_enabled=_get_bool("BREAK_EVEN_ENABLED", True),
         breakeven_trigger_r=_get_float("BREAK_EVEN_TRIGGER_R", 1.0),
         breakeven_buffer_points=_get_float("BREAK_EVEN_BUFFER_POINTS", 0.0),
@@ -130,6 +149,7 @@ def load_settings() -> Settings:
         state_db=_get("STATE_DB_PATH", "data/orb_state.sqlite"),
         journal_db=_get("JOURNAL_DB_PATH", "data/orb_journal.sqlite"),
         log_level=_get("LOG_LEVEL", "INFO") or "INFO",
+        point_overrides=_parse_point_overrides(_get("POINT_OVERRIDES", "")),
     )
 
 
@@ -160,4 +180,9 @@ def validate_settings(s: Settings) -> list[str]:
         errors.append("MAX_TRADES_PER_SYMBOL_PER_DAY must be >= 1")
     if s.intrabar_policy not in ("conservative", "optimistic", "stop_first", "target_first"):
         errors.append(f"Unknown intrabar policy: {s.intrabar_policy}")
+    if s.volume_filter_enabled and s.volume_min_rvol <= 0:
+        errors.append("VOLUME_MIN_RVOL must be > 0 when VOLUME_FILTER_ENABLED=true")
+    for sym, pt in s.point_overrides.items():
+        if pt <= 0:
+            errors.append(f"POINT_OVERRIDES {sym}: point must be > 0")
     return errors
