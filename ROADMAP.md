@@ -16,7 +16,8 @@
 
 ## Future (not in v1.0.0)
 
-- [ ] Volume/retest confirmation filters (configurable, each with tests + rationale)
+- [x] Volume confirmation filter (RVOL vs OR mean, disabled by default)
+- [ ] Retest confirmation filter (deferred entry on level retest)
 - [ ] ATR stop fed by live indicator stream; trailing-stop variants
 - [ ] Multi-timeframe OR (5/15/30/60 min presets via config)
 - [ ] Live dashboard / web observability

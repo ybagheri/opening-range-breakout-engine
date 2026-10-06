@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.1.0] — 2026-10-06
+
+### Added
+- Relative-volume confirmation filter (`VOLUME_FILTER_ENABLED`, `VOLUME_MIN_RVOL`, default 1.2):
+  `VolumeFilter` + detector wiring in live, paper and backtest paths; missing baseline volume
+  conservatively rejects the signal. Disabled by default.
+- Live polling loop (`ORBEngine.poll_once` / `run_live_poll`): pulls closed M5 bars per symbol
+  via `Broker.get_rates`, skips the forming bar, never reprocesses a bar, runs breakeven
+  management each iteration. `live` CLI now uses it when `DRY_RUN=false`.
+- Per-symbol point overrides (`POINT_OVERRIDES="US30:1.0,..."`) replacing the undocumented
+  single fallback; validated at startup.
+- `PaperBroker` fills at quoted bid/ask with explicit slippage records (`fills`), plus
+  `set_quote` for tests/simulation.
+
+### Fixed
+- Backtest CLI no longer feeds one CSV to every symbol: symbols without a matching file are
+  skipped with a warning (single-file demo: name the file after the symbol).
+- `ORBStrategy.update_or` now records mean OR-formation volume for the filter.
+
+### Tests
+- 15 new tests (52 total): filter unit tests, strategy gating, point overrides, paper fills,
+  idempotent poll loop, and dedicated look-ahead guards (OR ignores future bars, signal
+  determinism, next-bar-open entry accounting).
+
 ## [1.0.0] — 2026-10-06
 
 ### Added

@@ -1,7 +1,7 @@
 # Project Handoff
 
 Current Phase: Phase 13 — Documentation and final audit
-Status: COMPLETED (v1.0.0)
+Status: COMPLETED (v1.1.0)
 
 Completed: Phases 1–13 (all boxes in ROADMAP.md checked).
 
@@ -17,7 +17,7 @@ Implemented:
   with startup recovery + force-close).
 - Persistence (SQLite state + journal), reporting (config-hash reports), CLI (6 commands).
 
-Tests: `pytest` — 37 passed. `ruff check` — clean. Coverage ~73% overall; strategy/risk/
+Tests: `pytest` — 52 passed. `ruff check` — clean. `mypy` — clean (40 files). `ruff check` — clean. Coverage ~73% overall; strategy/risk/
 execution/state covered by targeted unit + integration tests.
 
 Known Issues / Limitations:
