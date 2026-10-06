@@ -8,7 +8,7 @@ from datetime import datetime
 from orb_engine.broker.base import Broker
 from orb_engine.config.settings import Settings, validate_settings
 from orb_engine.core.sessions import SessionConfig, SessionManager
-from orb_engine.core.types import Bar, SignalType, TradeSignal
+from orb_engine.core.types import Bar, Direction, SignalType, TradeSignal
 from orb_engine.execution.trade_manager import TradeManager
 from orb_engine.persistence.journal import TradeJournal
 from orb_engine.persistence.state import StateStore
@@ -47,8 +47,13 @@ class ORBEngine:
         return existing
 
     def on_tick(self, symbol: str, bid: float, ask: float, timestamp) -> dict:
-        """Called per tick; builds a pseudo-bar stream is caller responsibility.
-        Minimal safe handler: enforce force-close."""
+        """Called per tick; runs force-close + tick-level BE/trailing management.
+
+        Exit-price discipline is direction-aware (LONG exits at bid, SHORT at
+        cover/ask), unlike the poll path which only sees bid. Force-close keeps
+        precedence over management. Returns action dicts; never raises on
+        broker hiccups (logs and returns ``none``).
+        """
         if self.sessions.force_close_due(timestamp) and not self.s.allow_overnight:
             closed = []
             for p in self.broker.open_positions(magic=self.s.magic, symbol=symbol):
@@ -57,6 +62,18 @@ class ORBEngine:
                 elif self.broker.close_position(p.ticket):
                     closed.append({"ticket": p.ticket, "action": "closed"})
             return {"action": "force_close", "closed": closed}
+        try:
+            positions = self.broker.open_positions(magic=self.s.magic, symbol=symbol)
+        except Exception:
+            log.exception("on_tick position lookup failed")
+            return {"action": "none"}
+        if not positions:
+            return {"action": "none"}
+        prices = {p.ticket: (bid if p.direction == Direction.LONG else ask)
+                  for p in positions}
+        managed = self.tm.manage_open(prices)
+        if managed:
+            return {"action": "managed", "managed": managed}
         return {"action": "none"}
 
     def on_bar(self, bar: Bar) -> dict:

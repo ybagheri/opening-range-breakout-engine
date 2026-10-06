@@ -37,9 +37,9 @@ def load():
 
 
 def base_settings(**kw):
-    d = dict(timezone="America/New_York", or_start="09:30", or_end="09:45",
-             trading_start="09:45", trading_end="11:30", symbols=("US30",),
-             point_overrides={"US30": 0.1}, breakeven_enabled=False)
+    d = {"timezone": "America/New_York", "or_start": "09:30", "or_end": "09:45",
+         "trading_start": "09:45", "trading_end": "11:30", "symbols": ("US30",),
+         "point_overrides": {"US30": 0.1}, "breakeven_enabled": False}
     d.update(kw)
     return Settings(**d)
 
@@ -88,7 +88,7 @@ def main() -> None:
                if k.strftime("%Y-%m-%d") == day]
         if not fwd:
             continue
-        px, _, reason, _, _ = eng._simulate(fwd, direction, entry, stop, tp, None)
+        px, _, _reason, _, _ = eng._simulate(fwd, direction, entry, stop, tp, None)
         r = ((px - entry) if long else (entry - px)) / risk
         deferred.append(r)
 
