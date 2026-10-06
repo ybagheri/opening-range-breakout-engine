@@ -13,7 +13,7 @@ class ORBStrategy:
     def __init__(self, settings: Settings):
         self.s = settings
         self.sessions = SessionManager(SessionConfig(
-            timezone=settings.timezone, or_start=settings.or_start, or_end=settings.or_end,
+            timezone=settings.timezone, or_start=settings.or_start, or_end=settings.effective_or_end,
             trading_start=settings.trading_start, trading_end=settings.trading_end,
             force_close_time=settings.force_close_time, allow_overnight=settings.allow_overnight))
         self.builder = OpeningRangeBuilder()
@@ -32,7 +32,7 @@ class ORBStrategy:
 
     def update_or(self, bars: list[Bar], symbol: str, session_date: str) -> OpeningRange | None:
         ors = combine_market_time(session_date, self.s.or_start, self.s.timezone)
-        ore = combine_market_time(session_date, self.s.or_end, self.s.timezone)
+        ore = combine_market_time(session_date, self.s.effective_or_end, self.s.timezone)
         orng, valid = self.builder.build(bars, symbol, session_date, ors, ore)
         self.set_or(symbol, orng if valid.ok else None)
         return self._or[symbol]
@@ -49,7 +49,7 @@ class ORBStrategy:
             return TradeSignal(bar.symbol, sess, SignalType.NO_SIGNAL, bar.timestamp,
                                bar.close, float("nan"), float("nan"), "OR not ready/invalid")
         # OR formation bars themselves must not trigger
-        ore = combine_market_time(sess, self.s.or_end, self.s.timezone)
+        ore = combine_market_time(sess, self.s.effective_or_end, self.s.timezone)
         if not (ore <= mkt):
             return TradeSignal(bar.symbol, sess, SignalType.NO_SIGNAL, bar.timestamp,
                                bar.close, orng.high, orng.low,

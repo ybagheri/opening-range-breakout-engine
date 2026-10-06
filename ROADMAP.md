@@ -21,6 +21,6 @@
 - [ ] Retest confirmation filter (deferred entry on level retest)
 - [x] ATR stop end-to-end (Wilder ATR, backtest + live, refusal on missing ATR) — v1.3.0
 - [x] Trailing-stop variants (R-based, ratchet, BE composition, TRAIL_STOP reason) — v1.4.0
-- [ ] Multi-timeframe OR (5/15/30/60 min presets via config)
+- [x] Multi-timeframe OR via OR_DURATION_MINUTES (5/15/30/60 presets or any N; explicit end kept when 0) — v1.5.0
 - [ ] Live dashboard / web observability
 - [ ] MT5 integration tests against a demo terminal in CI (Windows runner)

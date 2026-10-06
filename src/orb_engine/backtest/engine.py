@@ -86,7 +86,7 @@ class BacktestEngine:
             day_bars = sorted(by_day[day], key=lambda b: b.timestamp)
             self.strategy._or.pop(symbol, None)
             ors = combine_market_time(day, self.s.or_start, self.s.timezone)
-            ore = combine_market_time(day, self.s.or_end, self.s.timezone)
+            ore = combine_market_time(day, self.s.effective_or_end, self.s.timezone)
             orng, valid = self.strategy.builder.build(day_bars, symbol, day, ors, ore)
             if not valid.ok or orng is None:
                 continue

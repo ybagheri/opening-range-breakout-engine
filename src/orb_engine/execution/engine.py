@@ -29,7 +29,7 @@ class ORBEngine:
         self.journal = TradeJournal(settings.journal_db)
         self.tm = TradeManager(settings, broker, self.state)
         self.sessions = SessionManager(SessionConfig(
-            timezone=settings.timezone, or_start=settings.or_start, or_end=settings.or_end,
+            timezone=settings.timezone, or_start=settings.or_start, or_end=settings.effective_or_end,
             trading_start=settings.trading_start, trading_end=settings.trading_end,
             force_close_time=settings.force_close_time, allow_overnight=settings.allow_overnight))
         self._bars: dict[str, list[Bar]] = {sym: [] for sym in settings.symbols}
@@ -68,7 +68,7 @@ class ORBEngine:
                     if self.sessions.session_date(b.timestamp) == sess]
         from orb_engine.utils.time_utils import combine_market_time
         ors = combine_market_time(sess, self.s.or_start, self.s.timezone)
-        ore = combine_market_time(sess, self.s.or_end, self.s.timezone)
+        ore = combine_market_time(sess, self.s.effective_or_end, self.s.timezone)
         if bar.timestamp >= ors:
             orng, v = self.strategy.builder.build(day_bars, bar.symbol, sess, ors, ore)
             if v.ok and orng is not None:

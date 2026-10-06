@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0] — 2026-10-06
+
+### Added — configurable OR duration (next roadmap phase)
+- `OR_DURATION_MINUTES`: N>0 sets OR end = start + N (5/15/30/60 presets or any value),
+  overriding `OR_END_TIME`; 0 keeps explicit times. Single `effective_or_end` consumed by
+  sessions, strategy, backtest and live engine; validation covers negativity, midnight
+  overflow and end<=start.
+- 6 new tests (67 total): preset math, precedence, validation, backtest + gating use.
+
+### Observed — OR-duration sensitivity (US30 M5, 36 sessions, OPP-noBE / TR1.5-0.5)
+- OR15: +21R / +35R | OR30: +10.7R / +21.7R | OR45: +13.3R / +7.2R | OR60: +1.5R / +1.9R.
+  Degradation with OR length is monotonic here; 60-min drop-best-5 deeply negative.
+- The finding CONFIRMS the existing 15-min default instead of changing it — no tuning needed.
+
 ## [1.4.0] — 2026-10-06
 
 ### Added — trailing-stop variants (next roadmap phase)

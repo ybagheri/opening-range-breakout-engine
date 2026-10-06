@@ -48,6 +48,7 @@ class Settings:
     timezone: str = "America/New_York"
     or_start: str = "09:30"
     or_end: str = "09:45"
+    or_duration_minutes: int = 0  # >0 overrides OR_END_TIME: end = start + duration
     trading_start: str = "09:45"
     trading_end: str = "11:30"
     force_close_time: str = ""
@@ -82,6 +83,17 @@ class Settings:
     journal_db: str = "data/orb_journal.sqlite"
     log_level: str = "INFO"
     point_overrides: dict[str, float] = field(default_factory=dict)
+
+    @property
+    def effective_or_end(self) -> str:
+        """OR end HH:MM. Duration mode (5/15/30/60 presets or any N>0) takes
+        precedence over the explicit OR_END_TIME; 0 keeps explicit times."""
+        if self.or_duration_minutes and self.or_duration_minutes > 0:
+            from orb_engine.utils.time_utils import parse_hhmm
+            st = parse_hhmm(self.or_start)
+            total = st.hour * 60 + st.minute + self.or_duration_minutes
+            return f"{total // 60:02d}:{total % 60:02d}"
+        return self.or_end
 
     def config_hash(self) -> str:
         payload = json.dumps(self.public_dict(), sort_keys=True)
@@ -120,6 +132,7 @@ def load_settings() -> Settings:
         timezone=_get("TIMEZONE", "America/New_York") or "America/New_York",
         or_start=_get("OR_START_TIME", "09:30"),
         or_end=_get("OR_END_TIME", "09:45"),
+        or_duration_minutes=_get_int("OR_DURATION_MINUTES", 0),
         trading_start=_get("TRADING_START_TIME", "09:45"),
         trading_end=_get("TRADING_END_TIME", "11:30"),
         force_close_time=_get("FORCE_CLOSE_TIME", ""),
@@ -177,11 +190,15 @@ def validate_settings(s: Settings) -> list[str]:
         errors.append("TRAIL_OFFSET_R must be >= 0 when TRAIL_ENABLED=true")
     if s.take_profit_mode not in ("risk_reward", "or_width_multiple", "fixed_points"):
         errors.append(f"Unknown TAKE_PROFIT_MODE: {s.take_profit_mode}")
+    if s.or_duration_minutes < 0:
+        errors.append("OR_DURATION_MINUTES must be >= 0 (0 = use OR_END_TIME)")
     try:
-        ors, ore = parse_hhmm(s.or_start), parse_hhmm(s.or_end)
+        ors, ore = parse_hhmm(s.or_start), parse_hhmm(s.effective_or_end)
         ts, te = parse_hhmm(s.trading_start), parse_hhmm(s.trading_end)
+        if s.or_duration_minutes > 0 and (ors.hour * 60 + ors.minute + s.or_duration_minutes) >= 24 * 60:
+            errors.append("OR start + OR_DURATION_MINUTES extends past midnight")
         if (ore.hour, ore.minute) <= (ors.hour, ors.minute):
-            errors.append("OR_END_TIME must be after OR_START_TIME")
+            errors.append("effective OR end must be after OR_START_TIME")
         if (te.hour, te.minute) <= (ts.hour, ts.minute):
             errors.append("TRADING_END_TIME must be after TRADING_START_TIME")
     except ValueError as e:
