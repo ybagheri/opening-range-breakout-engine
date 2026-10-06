@@ -33,6 +33,7 @@ risk-based sizing with real tick value, and a broker-agnostic architecture. No c
   normalized to `volume_min/max/step`. Never assumes 1 point = $1.
 - Optional breakeven move at `+BREAK_EVEN_TRIGGER_R`, daily loss guard, spread filter,
   magic-number strategy identity, SQLite state + journal, dry-run/paper modes.
+  Breakeven/trailing are managed both per tick (direction-aware exit prices) and on each bar poll.
 
 ## Project structure
 

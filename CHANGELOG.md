@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.8.0] — 2026-10-06
+
+### Added — tick-level BE/trailing management (live-gap hardening)
+- `ORBEngine.on_tick` now runs `TradeManager.manage_open` per tick instead of
+  only enforcing force-close, so breakeven/trailing react between bar polls.
+  Exit-price discipline is direction-aware (LONG at bid, SHORT at ask; the poll
+  path only sees bid). Force-close keeps precedence; broker lookup failures log
+  and return `none`, never raise.
+- 4 new tests (75 total): no-position tick, LONG breakeven move, SHORT ask-side
+  trigger, force-close precedence.
+
 ## [Unreleased] — retest hypothesis study (research only, no engine change)
 - `scripts/research_retest.py`: on 36 US30 sessions, 31/36 breakouts retest within 3 bars
   (retest is the norm, not a filter); deferred-after-retest entry scores +12R/31t vs

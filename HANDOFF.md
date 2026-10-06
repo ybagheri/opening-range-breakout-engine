@@ -1,7 +1,7 @@
 # Project Handoff
 
 Current Phase: Phase 13 — Documentation and final audit
-Status: v1.7.0 (MT5 integration suite + CI; all code phases done)
+Status: v1.8.0 (tick-level BE/trailing management; all code phases done + live-gap hardening)
 
 Completed: Phases 1–13 (all boxes in ROADMAP.md checked).
 
@@ -14,10 +14,14 @@ Implemented:
 - Backtest engine (event-driven, next-bar fills, spread/slippage/commission, conservative
   intrabar policy) + metrics, equity/R charts, walk-forward, optimizer, robustness, Monte Carlo.
 - Execution (Broker ABC, Mock/Paper/MT5 brokers, idempotent TradeManager, ORBEngine live loop
-  with startup recovery + force-close).
+  with startup recovery + force-close + per-tick BE/trailing management).
 - Persistence (SQLite state + journal), reporting (config-hash reports), CLI (6 commands).
 
-Tests: `pytest` — all pass, 5 MT5-terminal tests skip without a terminal. `ruff`/`mypy` clean.
+Tests: `pytest` — 75 passed, 5 MT5-terminal tests skip without a terminal. `ruff`/`mypy` clean.
+### v1.8.0 additions
+- `ORBEngine.on_tick` runs tick-level BE/trailing via `TradeManager.manage_open`
+  (direction-aware exit prices: LONG at bid, SHORT at ask); force-close keeps
+  precedence. 4 new tests in `tests/unit/test_tick.py`.
 ### Unreleased research
 - Retest study (`scripts/research_retest.py`): no evidence for deferred entry — retest
   filter remains research-only/code-free. FA README refreshed to v1.7.
