@@ -82,6 +82,7 @@ class TradeSignal:
     or_high: float
     or_low: float
     reason: str = ""
+    atr: float | None = None  # known at signal-bar close; required iff SL mode is atr
 
 
 @dataclass

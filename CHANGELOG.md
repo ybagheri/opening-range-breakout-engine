@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.0] — 2026-10-06
+
+### Added — ATR stops end-to-end (next roadmap phase, validated on fresh data)
+- `risk/indicators.py`: pure Wilder ATR (`true_ranges`, `wilder_atr`; warm-up marked None,
+  no look-ahead by construction) with hand-computed unit tests.
+- `ATR_PERIOD` setting (default 14, validated); `STOP_LOSS_VALUE` is the multiple in atr mode.
+- Backtest computes rolling ATR per symbol and uses the value known at the signal bar's
+  close; trade records now carry `atr`. Short warm-up history skips safely, never guesses.
+- Live engine attaches ATR from bars <= signal bar (`_attach_atr`); `TradeManager`
+  refuses ATR-mode signals without a valid ATR instead of guessing a stop.
+- `TradeSignal.atr` field (optional, backward compatible).
+
+### Observed (fresh US30 M5 window, 36 sessions, same assumptions as v1.1.1 note)
+- OPP-noBE +21R (dropBest5 +11) ~= ATR1.5-noBE +21R (dropBest5 +11, smaller maxDD, balanced L/S).
+  ATR1.5 with BE only +4R (dropBest5 negative); ATR2.0 +9R. Monthly splits all positive
+  but tiny. Verdict: ATR works correctly but shows NO advantage over opposite-side stops
+  here, so defaults stay unchanged — no tuning to 36 sessions.
+
 ## [1.2.0] — 2026-10-06
 
 ### Removed — equities volume filter does not survive CFD reality

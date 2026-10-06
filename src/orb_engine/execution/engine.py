@@ -8,7 +8,7 @@ from datetime import datetime
 from orb_engine.broker.base import Broker
 from orb_engine.config.settings import Settings, validate_settings
 from orb_engine.core.sessions import SessionConfig, SessionManager
-from orb_engine.core.types import Bar
+from orb_engine.core.types import Bar, SignalType, TradeSignal
 from orb_engine.execution.trade_manager import TradeManager
 from orb_engine.persistence.journal import TradeJournal
 from orb_engine.persistence.state import StateStore
@@ -75,8 +75,27 @@ class ORBEngine:
                 self.strategy.set_or(bar.symbol, orng)
                 self.state.upsert_or(bar.symbol, sess, orng.high, orng.low)
         sig = self.strategy.on_bar(bar)
+        if sig.signal_type != SignalType.NO_SIGNAL and self.s.stop_loss_mode == "atr":
+            sig = self._attach_atr(sig, bar.symbol)
         balance = self.broker.account_balance()
         return self.tm.handle_signal(sig, balance)
+
+    def _attach_atr(self, sig: TradeSignal, symbol: str) -> TradeSignal:
+        """Attach Wilder ATR known at the signal bar's close (bars <= signal only).
+        Returns the signal unchanged with atr=None when history is too short —
+        TradeManager then refuses the trade instead of guessing a stop."""
+        from dataclasses import replace
+
+        from orb_engine.risk.indicators import wilder_atr
+        hist = self._bars.get(symbol, [])
+        if len(hist) < self.s.atr_period:
+            return replace(sig, atr=None)
+        try:
+            series = wilder_atr([b.high for b in hist], [b.low for b in hist],
+                                 [b.close for b in hist], self.s.atr_period)
+        except ValueError:
+            return replace(sig, atr=None)
+        return replace(sig, atr=series[-1])
 
     def status(self) -> str:
         lines = ["ORB ENGINE", "--------------------------------",

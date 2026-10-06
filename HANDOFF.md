@@ -1,7 +1,7 @@
 # Project Handoff
 
 Current Phase: Phase 13 — Documentation and final audit
-Status: v1.2.0 (volume filter removed after failing on real CFD data)
+Status: v1.3.0 (ATR stops end-to-end; fresh-data research)
 
 Completed: Phases 1–13 (all boxes in ROADMAP.md checked).
 
@@ -17,7 +17,12 @@ Implemented:
   with startup recovery + force-close).
 - Persistence (SQLite state + journal), reporting (config-hash reports), CLI (6 commands).
 
-Tests: `pytest` — see run output (filter tests removed, gating/override/poll/look-ahead kept). `ruff check` — clean. `mypy` — clean (40 files). `ruff check` — clean. Coverage ~73% overall; strategy/risk/
+Tests: `pytest` — 55 passed. `ruff`/`mypy` clean.
+### v1.3.0 additions
+- Wilder ATR (`risk/indicators.py`) + ATR stop mode wired through backtest, live engine,
+  TradeManager refusal discipline, `ATR_PERIOD` setting, `TradeSignal.atr`.
+- Fresh data `data/US30_M5_UTC.csv` (M1-spaced despite name; converted to M5): 36 tradeable
+  sessions. ATR ~= opposite stops, no-BE beats BE variants in-window; defaults unchanged. `ruff check` — clean. `mypy` — clean (40 files). `ruff check` — clean. Coverage ~73% overall; strategy/risk/
 execution/state covered by targeted unit + integration tests.
 
 Known Issues / Limitations:

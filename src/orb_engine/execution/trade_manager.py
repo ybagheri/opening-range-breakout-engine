@@ -59,7 +59,12 @@ class TradeManager:
         if info is None or not info.trade_allowed:
             return {"action": "ignore", "reason": "symbol not tradeable"}
         entry = sig.price
-        stop = self.sl_calc.compute(direction, entry, sig.or_high, sig.or_low, info.point)
+        if self.s.stop_loss_mode == "atr" and (sig.atr is None or sig.atr <= 0):
+            log.warning("ATR stop mode but no ATR on signal for %s; refusing (do not guess)",
+                        sig.symbol)
+            return {"action": "ignore", "reason": "atr stop mode requires signal ATR"}
+        stop = self.sl_calc.compute(direction, entry, sig.or_high, sig.or_low, info.point,
+                                    atr=sig.atr)
         tp = self.tp_calc.compute(direction, entry, stop, sig.or_high, sig.or_low, info.point)
         # validate SL/TP distance vs stop level
         min_dist = info.stop_level_points * info.point

@@ -64,7 +64,17 @@ class BacktestEngine:
     def _run_symbol(self, symbol: str, df: pd.DataFrame) -> list[dict]:
         from orb_engine.core.types import Bar
         from orb_engine.data.models import bars_from_df
+        from orb_engine.risk.indicators import wilder_atr
         bars = bars_from_df(df, symbol, self.s.timezone)
+        # Rolling ATR over full history (each value uses data <= its bar only).
+        atr_by_time: dict = {}
+        if self.s.stop_loss_mode == "atr":
+            try:
+                series = wilder_atr([b.high for b in bars], [b.low for b in bars],
+                                    [b.close for b in bars], self.s.atr_period)
+                atr_by_time = {b.timestamp: a for b, a in zip(bars, series) if a}
+            except ValueError:
+                atr_by_time = {}  # history shorter than period: signals safely skipped
         # group by session date (market tz)
         by_day: dict[str, list[Bar]] = {}
         for b in bars:
@@ -109,7 +119,13 @@ class BacktestEngine:
                 slip = self.s.backtest_slippage_points * pt
                 spread = self.s.backtest_spread_points * pt
                 entry = eb.open + (spread / 2 + slip) * (1 if direction == Direction.LONG else -1)
-                stop = self.sl_calc.compute(direction, entry, orng.high, orng.low, pt)
+                atr = atr_by_time.get(b.timestamp)
+                try:
+                    stop = self.sl_calc.compute(direction, entry, orng.high, orng.low, pt,
+                                                atr=atr)
+                except ValueError:
+                    i += 1  # e.g. ATR mode without enough warm-up history: skip, never guess
+                    continue
                 tp = self.tp_calc.compute(direction, entry, stop, orng.high, orng.low, pt)
                 risk = abs(entry - stop)
                 if risk <= 0:
@@ -127,7 +143,7 @@ class BacktestEngine:
                     "symbol": symbol, "direction": direction.value, "session_date": day,
                     "or_high": orng.high, "or_low": orng.low,
                     "signal_time": b.timestamp, "entry_time": eb.timestamp,
-                    "entry": entry, "stop": stop, "target": tp,
+                    "entry": entry, "stop": stop, "target": tp, "atr": atr,
                     "exit_time": exit_t, "exit_price": exit_px,
                     "exit_reason": reason.value, "r_multiple": r_mult,
                     "breakeven_used": be_used,

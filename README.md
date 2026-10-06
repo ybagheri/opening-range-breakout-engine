@@ -26,7 +26,7 @@ risk-based sizing with real tick value, and a broker-agnostic architecture. No c
 - Breakout = price crossing OR high/low (+ optional buffer, optional close-confirmation).
   A bar touching **both** sides yields NO signal (conservative).
 - Entries only inside `TRADING_START_TIME → TRADING_END_TIME`; forced flat at `FORCE_CLOSE_TIME`.
-- Stop modes: `opposite | or_width_multiple | fixed_points | percent | atr`.
+- Stop modes: `opposite | or_width_multiple | fixed_points | percent | atr` (`atr` = Wilder ATR(ATR_PERIOD) x STOP_LOSS_VALUE, computed from bars <= signal bar; missing ATR refuses the trade).
   TP modes: `risk_reward | or_width_multiple | fixed_points`. RR fully configurable.
 - Fixed-fractional sizing from balance × risk % using real `tick_size/tick_value`,
   normalized to `volume_min/max/step`. Never assumes 1 point = $1.
