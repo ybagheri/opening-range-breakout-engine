@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0] — 2026-10-06
+
+### Added — MT5 integration suite + CI (last open code phase)
+- `tests/integration/test_mt5_terminal.py`: triple-gated (opt-in env + package + reachable
+  terminal), strictly read-only + DRY_RUN — connection/account, symbol validation, quotes,
+  rates, full dry-run pipeline against real specs, strategy-identity isolation.
+  Physically incapable of trading: dry-run forced, no order APIs called anywhere.
+- `tests/unit/test_mt5_gating.py`: gate stays closed without opt-in.
+- `.github/workflows/ci.yml`: Linux (ruff/mypy/pytest) + Windows (+MetaTrader5 pkg) jobs;
+  terminal tests skip in CI, run on a terminal-equipped runner with secrets.
+- `mt5` pytest marker registered.
+
 ## [1.6.0] — 2026-10-06
 
 ### Added — local observability (next roadmap phase, zero new dependencies)

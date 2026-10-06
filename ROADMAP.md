@@ -24,4 +24,4 @@
 - [x] Multi-timeframe OR via OR_DURATION_MINUTES (5/15/30/60 presets or any N; explicit end kept when 0) — v1.5.0
 - [x] Local observability: stdlib-only status server (JSON + auto-refresh HTML, loopback, `status`/`serve` CLI) — v1.6.0
 - [ ] Full live dashboard (charts, remote access with auth) — only if needed
-- [ ] MT5 integration tests against a demo terminal in CI (Windows runner)
+- [x] MT5 integration suite (terminal-gated, read-only + dry-run only, never sends orders) + Linux/Windows CI — v1.7.0

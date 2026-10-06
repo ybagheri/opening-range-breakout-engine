@@ -62,7 +62,8 @@ PYTHONPATH=src python -m orb_engine backtest --data-glob 'data/*.csv'
 PYTHONPATH=src python -m orb_engine validate                       # unit tests
 PYTHONPATH=src python -m orb_engine optimize
 PYTHONPATH=src python -m orb_engine live                            # real execution (careful!)
-pytest  # full suite (37 tests)
+pytest  # full suite (unit + backtest integration; MT5 terminal tests skip safely)
+MT5_RUN_LIVE_TESTS=1 pytest tests/integration/test_mt5_terminal.py -v  # Windows + demo terminal only
 ```
 
 ## Configuration

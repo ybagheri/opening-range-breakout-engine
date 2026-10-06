@@ -1,0 +1,35 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: ruff check src tests scripts
+      - run: python -m mypy src/orb_engine --ignore-missing-imports
+      - run: PYTHONPATH=src python -m pytest tests/ -q
+        env:
+          # MT5_RUN_LIVE_TESTS intentionally unset: terminal tests skip, never fail.
+          PYTHONPATH: src
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt "MetaTrader5; sys_platform=='win32'"
+      - run: ruff check src tests scripts
+      - run: $env:PYTHONPATH = "src"; python -m pytest tests/ -q
+      # To run the live-terminal suite on a self-hosted Windows runner with a
+      # logged-in demo terminal, set secrets MT5_LOGIN/MT5_PASSWORD/MT5_SERVER,
+      # env MT5_RUN_LIVE_TESTS=1, and run:
+      #   python -m pytest tests/integration/test_mt5_terminal.py -v

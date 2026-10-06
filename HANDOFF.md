@@ -1,7 +1,7 @@
 # Project Handoff
 
 Current Phase: Phase 13 — Documentation and final audit
-Status: v1.6.0 (local status server; observability)
+Status: v1.7.0 (MT5 integration suite + CI; all code phases done)
 
 Completed: Phases 1–13 (all boxes in ROADMAP.md checked).
 
@@ -17,7 +17,10 @@ Implemented:
   with startup recovery + force-close).
 - Persistence (SQLite state + journal), reporting (config-hash reports), CLI (6 commands).
 
-Tests: `pytest` — 70 passed. `ruff`/`mypy` clean.
+Tests: `pytest` — all pass, 5 MT5-terminal tests skip without a terminal. `ruff`/`mypy` clean.
+### v1.7.0 additions
+- Terminal-gated integration suite + CI workflows. To verify live: Windows + demo terminal,
+  `MT5_RUN_LIVE_TESTS=1 pytest tests/integration/test_mt5_terminal.py -v`. Suite never trades.
 ### v1.6.0 additions
 - `reporting/status.py` + `status`/`serve` CLI (stdlib http.server, loopback default).
   Remaining observability (remote/auth dashboard) deferred as unnecessary.

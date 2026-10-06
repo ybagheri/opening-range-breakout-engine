@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "orb-engine"
-version = "1.6.0"
+version = "1.7.0"
 description = "Opening Range Breakout (ORB) trading engine - Python + MetaTrader5"
 requires-python = ">=3.10"
 dependencies = [
@@ -35,3 +35,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+  "mt5: live-terminal tests (skipped without MT5_RUN_LIVE_TESTS=1 and a terminal)",
+]
