@@ -1,7 +1,7 @@
 # Project Handoff
 
 Current Phase: Phase 13 — Documentation and final audit
-Status: v1.5.0 (configurable OR duration; sensitivity research)
+Status: v1.6.0 (local status server; observability)
 
 Completed: Phases 1–13 (all boxes in ROADMAP.md checked).
 
@@ -17,7 +17,10 @@ Implemented:
   with startup recovery + force-close).
 - Persistence (SQLite state + journal), reporting (config-hash reports), CLI (6 commands).
 
-Tests: `pytest` — 67 passed. `ruff`/`mypy` clean.
+Tests: `pytest` — 70 passed. `ruff`/`mypy` clean.
+### v1.6.0 additions
+- `reporting/status.py` + `status`/`serve` CLI (stdlib http.server, loopback default).
+  Remaining observability (remote/auth dashboard) deferred as unnecessary.
 ### v1.5.0 additions
 - `OR_DURATION_MINUTES` with `Settings.effective_or_end` consumed everywhere; 15-min default
   confirmed by sensitivity sweep (longer ORs degrade monotonically on this sample).

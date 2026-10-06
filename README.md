@@ -55,6 +55,8 @@ MT5 setup: install the MT5 terminal (Windows), log in, enable *Algo Trading*, in
 on a chart. On Linux/macOS use `DRY_RUN=true` / paper mode and CSV backtests.
 
 ```bash
+PYTHONPATH=src python -m orb_engine status                          # JSON snapshot
+PYTHONPATH=src python -m orb_engine serve --poll-secs 30            # localhost:8765
 PYTHONPATH=src python -m orb_engine paper                          # validate config, show status
 PYTHONPATH=src python -m orb_engine backtest --data-glob 'data/*.csv'
 PYTHONPATH=src python -m orb_engine validate                       # unit tests
@@ -92,6 +94,8 @@ below broker minimum), stop-level checks, duplicate protection (magic + symbol +
 store), restart recovery (reconciles existing positions), daily loss halt. See `docs/`.
 
 ## Docs & project management
+
+- Local status page (`serve`: loopback-only JSON + auto-refresh HTML, no secrets exposed)
 
 - [Persian README](docs/README_FA.md) · [ROADMAP.md](ROADMAP.md) · [CHANGELOG.md](CHANGELOG.md) · [HANDOFF.md](HANDOFF.md)
 

@@ -22,5 +22,6 @@
 - [x] ATR stop end-to-end (Wilder ATR, backtest + live, refusal on missing ATR) — v1.3.0
 - [x] Trailing-stop variants (R-based, ratchet, BE composition, TRAIL_STOP reason) — v1.4.0
 - [x] Multi-timeframe OR via OR_DURATION_MINUTES (5/15/30/60 presets or any N; explicit end kept when 0) — v1.5.0
-- [ ] Live dashboard / web observability
+- [x] Local observability: stdlib-only status server (JSON + auto-refresh HTML, loopback, `status`/`serve` CLI) — v1.6.0
+- [ ] Full live dashboard (charts, remote access with auth) — only if needed
 - [ ] MT5 integration tests against a demo terminal in CI (Windows runner)

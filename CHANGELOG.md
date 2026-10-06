@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.0] — 2026-10-06
+
+### Added — local observability (next roadmap phase, zero new dependencies)
+- `reporting/status.py`: read-only snapshot (config hash, connectivity, balance, ORs,
+  positions, daily counters — never credentials) rendered as JSON + auto-refresh HTML.
+- CLI `status` (print snapshot) and `serve --host/--port/--poll-secs` (loopback HTTP,
+  optional background polling thread). HTML-escaped output.
+- 3 new tests (70 total): snapshot shape + secrecy, escaping, live HTTP round-trip.
+
 ## [1.5.0] — 2026-10-06
 
 ### Added — configurable OR duration (next roadmap phase)
