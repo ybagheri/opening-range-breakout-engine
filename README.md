@@ -16,7 +16,7 @@ future performance.
 
 Strategy/research ideas were informed by
 [sam-bateman/trading-orb](https://github.com/sam-bateman/trading-orb)
-(OR definition, event-driven backtesting, volume confirmation, walk-forward validation, robustness
+(OR definition, event-driven backtesting, walk-forward validation, robustness
 suite, separation of strategy and execution) — re-designed here for MT5 indices (US30/US500/US100),
 risk-based sizing with real tick value, and a broker-agnostic architecture. No code was copied.
 

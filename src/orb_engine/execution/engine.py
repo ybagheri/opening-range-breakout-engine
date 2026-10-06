@@ -72,9 +72,7 @@ class ORBEngine:
         if bar.timestamp >= ors:
             orng, v = self.strategy.builder.build(day_bars, bar.symbol, sess, ors, ore)
             if v.ok and orng is not None:
-                vols = [b.volume for b in day_bars if ors <= b.timestamp < ore]
-                mean_vol = (sum(vols) / len(vols)) if vols else None
-                self.strategy.set_or(bar.symbol, orng, mean_vol)
+                self.strategy.set_or(bar.symbol, orng)
                 self.state.upsert_or(bar.symbol, sess, orng.high, orng.low)
         sig = self.strategy.on_bar(bar)
         balance = self.broker.account_balance()

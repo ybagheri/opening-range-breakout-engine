@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0] — 2026-10-06
+
+### Removed — equities volume filter does not survive CFD reality
+- Deleted the relative-volume confirmation filter entirely: `strategy/filters.py`,
+  `BreakoutDetector` volume gate, OR mean-volume plumbing (strategy/backtest/live),
+  `VOLUME_FILTER_ENABLED` / `VOLUME_MIN_RVOL` settings + validation, `.env` keys,
+  and all filter tests/docs. The engine is price-only again.
+- Evidence: on real US30 CFD M1 data (36 sessions) RVOL>=1.2 turned +12R into +0.4R and
+  drop-best-5 negative, while only 17% of breakout bars even reached the threshold —
+  CFD tick volume is not equity volume. Per project principle (robustness over
+  sophistication), a filter that fails out-of-sample gets deleted, not tuned.
+- Retest-confirmation idea stays on the roadmap as research, not code.
+
 ## [1.1.1] — 2026-10-06
 
 ### Fixed

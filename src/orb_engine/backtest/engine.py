@@ -81,8 +81,6 @@ class BacktestEngine:
             if not valid.ok or orng is None:
                 continue
             self.strategy._or[symbol] = orng
-            vols = [b.volume for b in day_bars if ors <= b.timestamp < ore]
-            self.strategy._or_mean_volume[symbol] = (sum(vols) / len(vols)) if vols else None
             # scan post-OR bars
             post = [b for b in day_bars if b.timestamp >= ore]
             # entry window end
@@ -99,8 +97,7 @@ class BacktestEngine:
                 if b.timestamp < t0:
                     i += 1
                     continue
-                sig = self.strategy.detector.detect(
-                    b, orng, day, self.strategy._or_mean_volume.get(symbol))
+                sig = self.strategy.detector.detect(b, orng, day)
                 if sig.signal_type == SignalType.NO_SIGNAL:
                     i += 1
                     continue

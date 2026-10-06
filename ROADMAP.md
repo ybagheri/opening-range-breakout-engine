@@ -16,7 +16,8 @@
 
 ## Future (not in v1.0.0)
 
-- [x] Volume confirmation filter (RVOL vs OR mean, disabled by default)
+- [x] Volume filter tried on real US30 CFD data, then REMOVED in v1.2.0 (see CHANGELOG) —
+  tick-volume confirmation does not transfer from equities to CFD brokers; engine is price-only
 - [ ] Retest confirmation filter (deferred entry on level retest)
 - [ ] ATR stop fed by live indicator stream; trailing-stop variants
 - [ ] Multi-timeframe OR (5/15/30/60 min presets via config)

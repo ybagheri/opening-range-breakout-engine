@@ -1,7 +1,7 @@
 # Project Handoff
 
 Current Phase: Phase 13 — Documentation and final audit
-Status: v1.1.1 (real-data validation + backtest filter fix)
+Status: v1.2.0 (volume filter removed after failing on real CFD data)
 
 Completed: Phases 1–13 (all boxes in ROADMAP.md checked).
 
@@ -17,7 +17,7 @@ Implemented:
   with startup recovery + force-close).
 - Persistence (SQLite state + journal), reporting (config-hash reports), CLI (6 commands).
 
-Tests: `pytest` — 53 passed. `ruff check` — clean. `mypy` — clean (40 files). `ruff check` — clean. Coverage ~73% overall; strategy/risk/
+Tests: `pytest` — see run output (filter tests removed, gating/override/poll/look-ahead kept). `ruff check` — clean. `mypy` — clean (40 files). `ruff check` — clean. Coverage ~73% overall; strategy/risk/
 execution/state covered by targeted unit + integration tests.
 
 Known Issues / Limitations:
@@ -43,7 +43,7 @@ Important files:
 - `HANDOFF.md`, `ROADMAP.md`, `CHANGELOG.md`, `README.md`, `docs/README_FA.md`.
 
 What remains / Next recommended:
-- Optional filters (volume/retest) with per-filter tests; live tick loop wiring to MT5 rates;
+- Retest-confirmation stays research-only until proven; live tick loop wiring to MT5 rates;
   Windows demo-terminal integration tests; dashboard.
 
 Potential risks:

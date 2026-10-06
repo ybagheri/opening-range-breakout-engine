@@ -1,4 +1,4 @@
-"""v1.1.0 tests: volume filter, strategy gating, point overrides, poll loop."""
+"""v1.2.0 tests: strategy gating, point overrides, paper fills, poll loop."""
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -10,7 +10,6 @@ from orb_engine.config.settings import Settings, _parse_point_overrides, validat
 from orb_engine.core.types import Bar, Direction, OpeningRange, SignalType
 from orb_engine.execution.engine import ORBEngine
 from orb_engine.strategy.breakout import BreakoutDetector
-from orb_engine.strategy.filters import VolumeFilter
 from orb_engine.strategy.strategy import ORBStrategy
 
 Z = ZoneInfo("America/New_York")
@@ -31,36 +30,12 @@ def S(**kw):
     return Settings(**base)
 
 
-# --- VolumeFilter ---
-def test_disabled_always_passes():
-    f = VolumeFilter(0.0)
-    assert not f.enabled
-    assert f.passes(0.0, None)[0]
-
-
-def test_rvol_threshold():
-    f = VolumeFilter(1.2)
-    assert f.passes(120.0, 100.0)[0]
-    assert not f.passes(100.0, 100.0)[0]
-
-
-def test_no_baseline_is_conservative_reject():
-    f = VolumeFilter(1.2)
-    ok, why = f.passes(500.0, None)
-    assert not ok and "conservative" in why
-
-
-# --- Detector integration ---
-def test_detector_blocks_thin_breakout():
-    d = BreakoutDetector(volume_filter=VolumeFilter(1.2))
-    s = d.detect(bar("10:00", 109, 112, 108, 111, v=50.0), OR, "2024-01-02", 100.0)
-    assert s.signal_type == SignalType.NO_SIGNAL and "volume" in s.reason
-
-
-def test_detector_accepts_confirmed_breakout():
-    d = BreakoutDetector(volume_filter=VolumeFilter(1.2))
-    s = d.detect(bar("10:00", 109, 112, 108, 111, v=200.0), OR, "2024-01-02", 100.0)
-    assert s.signal_type == SignalType.LONG
+# --- Detector: pure price breakout, no volume gate ---
+def test_detector_breakout_ignores_volume():
+    d = BreakoutDetector()
+    thin = d.detect(bar("10:00", 109, 112, 108, 111, v=1.0), OR, "2024-01-02")
+    thick = d.detect(bar("10:00", 109, 112, 108, 111, v=100000.0), OR, "2024-01-02")
+    assert thin.signal_type == thick.signal_type == SignalType.LONG
 
 
 # --- Strategy gating ---
@@ -81,17 +56,16 @@ def test_bar_inside_or_window_no_signal():
 
 def test_bar_outside_entry_window_no_signal():
     st = _strategy_with_or()
-    s = st.on_bar(bar("11:30", 100, 200, 50, 150))
     # 11:30 boundary is inclusive; use 12:00 for outside
     s = st.on_bar(bar("12:00", 100, 200, 50, 150))
     assert s.signal_type == SignalType.NO_SIGNAL and "entry window" in s.reason
 
 
-def test_strategy_emits_breakout_with_volume():
-    st = _strategy_with_or(volume_filter_enabled=True, volume_min_rvol=1.2)
-    s = st.on_bar(bar("10:00", 103, 106, 102, 105, v=300.0))  # OR high=104
+def test_strategy_emits_breakout():
+    st = _strategy_with_or()
+    s = st.on_bar(bar("10:00", 103, 106, 102, 105))  # OR high=104
     assert s.signal_type == SignalType.LONG
-    s2 = st.on_bar(bar("10:05", 103, 106, 102, 105, v=50.0))
+    s2 = st.on_bar(bar("10:05", 103, 104, 102, 103))
     assert s2.signal_type == SignalType.NO_SIGNAL
 
 
@@ -153,29 +127,3 @@ def test_poll_once_idempotent(tmp_path):
     second = eng.poll_once()
     assert second == []  # nothing new: no reprocessing
     assert eng.strategy.get_or("TST") is not None
-
-
-def test_backtest_filter_permissive_matches_disabled():
-    """Regression: a permissive filter must not silently kill all signals
-    (backtest must actually pass OR mean volume into the detector)."""
-    import pandas as pd
-
-    from orb_engine.backtest.engine import BacktestEngine
-    idx = pd.date_range("2024-01-02 09:30", periods=30, freq="5min", tz="America/New_York")
-    rows = []
-    for i in range(30):
-        if i < 3:
-            rows.append((100, 101, 99, 100, 100))
-        elif i == 5:
-            rows.append((100, 106, 99, 104, 500))
-        else:
-            rows.append((104, 112, 103, 110, 100))
-    df = pd.DataFrame(rows, columns=["open", "high", "low", "close", "volume"], index=idx)
-    off = S(breakeven_enabled=False)
-    on = S(breakeven_enabled=False, volume_filter_enabled=True, volume_min_rvol=0.01)
-    t_off = BacktestEngine(off).run({"TST": df}).trades
-    t_on = BacktestEngine(on).run({"TST": df}).trades
-    assert len(t_off) >= 1
-    assert len(t_on) == len(t_off)
-    strict = S(breakeven_enabled=False, volume_filter_enabled=True, volume_min_rvol=999.0)
-    assert BacktestEngine(strict).run({"TST": df}).trades == []

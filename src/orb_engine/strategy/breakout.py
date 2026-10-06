@@ -2,23 +2,19 @@
 from __future__ import annotations
 
 from orb_engine.core.types import Bar, OpeningRange, SignalType, TradeSignal
-from orb_engine.strategy.filters import VolumeFilter
 
 
 class BreakoutDetector:
     def __init__(self, buffer_points: float = 0.0, buffer_pct_of_or: float = 0.0,
-                 require_close: bool = False, volume_filter: VolumeFilter | None = None):
+                 require_close: bool = False):
         self.buffer_points = buffer_points
         self.buffer_pct_of_or = buffer_pct_of_or
         self.require_close = require_close
-        self.volume_filter = volume_filter or VolumeFilter(0.0)
 
     def buffer(self, orng: OpeningRange) -> float:
         return self.buffer_points + (self.buffer_pct_of_or / 100.0) * orng.width
 
-    def detect(self, bar: Bar, orng: OpeningRange, session_date: str,
-                 or_mean_volume: float | None = None) -> TradeSignal:
-        buf = self.buffer(orng)
+    def detect(self, bar: Bar, orng: OpeningRange, session_date: str) -> TradeSignal:
         buf = self.buffer(orng)
         up = orng.high + buf
         dn = orng.low - buf
@@ -32,11 +28,6 @@ class BreakoutDetector:
         if long_hit and short_hit:
             return TradeSignal(bar.symbol, session_date, SignalType.NO_SIGNAL, bar.timestamp,
                                bar.close, orng.high, orng.low, "ambiguous: both sides touched")
-        if (long_hit or short_hit) and self.volume_filter.enabled:
-            ok, why = self.volume_filter.passes(bar.volume, or_mean_volume)
-            if not ok:
-                return TradeSignal(bar.symbol, session_date, SignalType.NO_SIGNAL, bar.timestamp,
-                                   bar.close, orng.high, orng.low, f"volume filter: {why}")
         if long_hit:
             px = bar.close if self.require_close else max(bar.close, up)
             return TradeSignal(bar.symbol, session_date, SignalType.LONG, bar.timestamp,
