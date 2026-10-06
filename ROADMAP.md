@@ -1,0 +1,23 @@
+# Roadmap
+
+- [x] Phase 1 — Architecture and project foundation (package layout, typing, lint/test tooling)
+- [x] Phase 2 — Configuration and environment management (.env, validation, config hash)
+- [x] Phase 3 — Market data and session engine (providers, validation, sessions, TZ handling)
+- [x] Phase 4 — ORB strategy and signal engine (OpeningRange, BreakoutDetector, ORBStrategy)
+- [x] Phase 5 — Risk management and position sizing (sizing, SL/TP, breakeven, daily guards)
+- [x] Phase 6 — Backtesting engine (event-driven, realistic fills, intrabar policy, metrics)
+- [x] Phase 7 — MT5 Python execution layer (MT5Broker, no EA dependency)
+- [x] Phase 8 — Paper trading (PaperBroker, DRY_RUN, TradeManager idempotency)
+- [x] Phase 9 — Persistence and recovery (SQLite state + journal, startup reconciliation)
+- [x] Phase 10 — Analytics and reporting (PerformanceAnalyzer, charts, report generator, CLI)
+- [x] Phase 11 — Walk-forward and robustness testing (WF harness, optimizer, robustness, Monte Carlo)
+- [x] Phase 12 — Production hardening (MT5 safety checks, spread filter, observability status)
+- [x] Phase 13 — Documentation and final audit (bilingual README, HANDOFF, full test/lint pass)
+
+## Future (not in v1.0.0)
+
+- [ ] Volume/retest confirmation filters (configurable, each with tests + rationale)
+- [ ] ATR stop fed by live indicator stream; trailing-stop variants
+- [ ] Multi-timeframe OR (5/15/30/60 min presets via config)
+- [ ] Live dashboard / web observability
+- [ ] MT5 integration tests against a demo terminal in CI (Windows runner)
