@@ -42,7 +42,7 @@ def cmd_live(_a):
     eng.startup_recovery()
     print(eng.status())
     if not s.dry_run:
-        eng.run_loop()
+        eng.run_live_poll()
 
 
 def cmd_backtest(a):
@@ -60,16 +60,22 @@ def cmd_backtest(a):
         print(f"no files match {a.data_glob}")
         sys.exit(1)
     data = {}
-    # map file per symbol: expect filenames containing symbol
+    # map file per symbol: filenames must contain the symbol (case-insensitive).
+    # Symbols without a matching file are skipped with a warning — never silently
+    # fed another symbol's data. Single-file demo: name it after the symbol.
     for sym in s.symbols:
         match = [f for f in files if sym.lower() in f.lower()]
-        f = match[0] if match else (files[0] if len(files) == 1 else None)
-        if f is None:
+        if not match:
+            print(f"warning: no data file for {sym}; skipping (expected '*{sym}*.csv')")
             continue
+        f = match[0]
         df = pd.read_csv(f, parse_dates=True, index_col=0)
         df.index = pd.to_datetime(df.index, utc=True).tz_convert(s.timezone)
         df.columns = [c.lower() for c in df.columns]
         data[sym] = df
+    if not data:
+        print("no symbol had a matching data file; nothing to backtest")
+        sys.exit(1)
     eng = BacktestEngine(s)
     res = eng.run(data)
     summ = summarize(res.trades, res.equity)

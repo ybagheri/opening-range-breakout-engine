@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import datetime
 
 from orb_engine.broker.base import Broker
 from orb_engine.config.settings import Settings, validate_settings
@@ -32,6 +33,7 @@ class ORBEngine:
             trading_start=settings.trading_start, trading_end=settings.trading_end,
             force_close_time=settings.force_close_time, allow_overnight=settings.allow_overnight))
         self._bars: dict[str, list[Bar]] = {sym: [] for sym in settings.symbols}
+        self._last_bar_time: dict[str, datetime] = {}
 
     def startup_recovery(self) -> list:
         """Reconcile existing strategy positions after restart."""
@@ -70,7 +72,9 @@ class ORBEngine:
         if bar.timestamp >= ors:
             orng, v = self.strategy.builder.build(day_bars, bar.symbol, sess, ors, ore)
             if v.ok and orng is not None:
-                self.strategy._or[bar.symbol] = orng
+                vols = [b.volume for b in day_bars if ors <= b.timestamp < ore]
+                mean_vol = (sum(vols) / len(vols)) if vols else None
+                self.strategy.set_or(bar.symbol, orng, mean_vol)
                 self.state.upsert_or(bar.symbol, sess, orng.high, orng.low)
         sig = self.strategy.on_bar(bar)
         balance = self.broker.account_balance()
@@ -86,6 +90,63 @@ class ORBEngine:
             else:
                 lines.append(f"{sym} OR: -- WAITING")
         return "\n".join(lines)
+
+    def poll_once(self, timeframe: str = "M5", lookback: int = 20) -> list[dict]:
+        """One live iteration: pull recent bars per symbol, feed only NEW fully-closed
+        bars to ``on_bar`` (the last/forming bar is always skipped — never trade off
+        incomplete data), then run breakeven management on open positions.
+
+        Requires a broker supporting ``get_rates`` (MT5Broker). Returns per-bar results.
+        """
+        from orb_engine.data.models import bars_from_df
+
+        results: list[dict] = []
+        for symbol in self.s.symbols:
+            if not self.broker.ensure_symbol(symbol):
+                log.warning("symbol unavailable, skipping: %s", symbol)
+                continue
+            try:
+                df = self.broker.get_rates(symbol, timeframe, lookback)
+            except (NotImplementedError, RuntimeError) as e:
+                log.warning("no rates for %s: %s", symbol, e)
+                continue
+            if df.empty or len(df) < 2:
+                continue
+            closed = bars_from_df(df.iloc[:-1], symbol, self.s.timezone)  # drop forming bar
+            last = self._last_bar_time.get(symbol)
+            for bar in closed:
+                if last is not None and bar.timestamp <= last:
+                    continue  # idempotent: never reprocess a bar
+                results.append(self.on_bar(bar))
+                self._last_bar_time[symbol] = bar.timestamp
+        # breakeven management on all open strategy positions
+        prices: dict[int, float] = {}
+        for pos in self.broker.open_positions(magic=self.s.magic):
+            try:
+                bid, _ = self.broker.current_price(pos.symbol)
+                prices[pos.ticket] = bid
+            except RuntimeError as e:
+                log.warning("no quote for breakeven check: %s", e)
+        self.tm.manage_open(prices)
+        return results
+
+    def run_live_poll(self, poll_seconds: int = 30, timeframe: str = "M5",
+                      max_iters: int | None = None) -> None:
+        """Blocking live loop. Use DRY_RUN=true until the full path is proven on demo."""
+        self.startup_recovery()
+        log.info("live poll start tf=%s every=%ss dry_run=%s", timeframe, poll_seconds,
+                 self.s.dry_run)
+        it = 0
+        while True:
+            try:
+                self.poll_once(timeframe)
+                print(self.status(), flush=True)
+            except Exception:
+                log.exception("poll iteration failed (continuing)")
+            it += 1
+            if max_iters is not None and it >= max_iters:
+                break
+            time.sleep(poll_seconds)
 
     def run_loop(self, poll_seconds: int = 5, max_iters: int | None = None) -> None:
         self.startup_recovery()

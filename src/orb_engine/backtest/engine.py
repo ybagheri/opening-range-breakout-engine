@@ -30,9 +30,17 @@ class BacktestResult:
     config_hash: str
 
 
-def _point(symbol: str, fallback: float = 0.01) -> float:
-    guess = {"US30": 1.0, "US500": 0.1, "US100": 0.1, "NAS100": 0.1, "SPX500": 0.1}
-    return guess.get(symbol.upper(), fallback)
+#: Built-in point-size guesses for common index CFDs. Override per deployment
+#: with POINT_OVERRIDES="SYM:point,..." — live trading always uses MT5 SymbolInfo.
+DEFAULT_POINTS = {"US30": 1.0, "US500": 0.1, "US100": 0.1, "NAS100": 0.1,
+                  "SPX500": 0.1, "USTEC": 0.1, "USNAS100": 0.1}
+
+
+def resolve_point(symbol: str, overrides: dict[str, float],
+                  fallback: float = 0.01) -> float:
+    if symbol.upper() in overrides:
+        return overrides[symbol.upper()]
+    return DEFAULT_POINTS.get(symbol.upper(), fallback)
 
 
 class BacktestEngine:
@@ -63,7 +71,7 @@ class BacktestEngine:
             d = self.strategy.sessions.session_date(b.timestamp)
             by_day.setdefault(d, []).append(b)
         trades: list[dict] = []
-        pt = _point(symbol)
+        pt = resolve_point(symbol, self.s.point_overrides)
         for day in sorted(by_day):
             day_bars = sorted(by_day[day], key=lambda b: b.timestamp)
             self.strategy._or.pop(symbol, None)
@@ -73,6 +81,8 @@ class BacktestEngine:
             if not valid.ok or orng is None:
                 continue
             self.strategy._or[symbol] = orng
+            vols = [b.volume for b in day_bars if ors <= b.timestamp < ore]
+            self.strategy._or_mean_volume[symbol] = (sum(vols) / len(vols)) if vols else None
             # scan post-OR bars
             post = [b for b in day_bars if b.timestamp >= ore]
             # entry window end
