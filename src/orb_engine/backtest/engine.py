@@ -99,7 +99,8 @@ class BacktestEngine:
                 if b.timestamp < t0:
                     i += 1
                     continue
-                sig = self.strategy.detector.detect(b, orng, day)
+                sig = self.strategy.detector.detect(
+                    b, orng, day, self.strategy._or_mean_volume.get(symbol))
                 if sig.signal_type == SignalType.NO_SIGNAL:
                     i += 1
                     continue

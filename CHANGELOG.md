@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.1] — 2026-10-06
+
+### Fixed
+- Backtest engine now passes OR mean volume into the breakout detector. Previously the
+  volume filter received `None` in backtests and conservatively rejected every signal,
+  found while validating against real US30 M1 data (thank you, real data).
+- Added `scripts/convert_mt5_csv.py` (MT5 export → engine bars; works around a pandas
+  index-alignment gotcha that silently yields all-NaN columns) plus a regression test
+  pinning permissive-filter == filter-disabled trade counts.
+
+### Observed (US30 CFD, 36 sessions Aug–Oct 2026, M5, NOT a claim of edge)
+- Baseline (BE@1R): 36 trades, +12R, win 33%, PF 2.0 — but drop-best-5 leaves +2R.
+- No-breakeven variant: +21R, win 53% on the same sample; breakeven scratched eventual winners.
+- RVOL>=1.2 filter: +0.4R — the equities volume-finding does NOT transfer to this CFD sample.
+- Sample far too small for conclusions; reported for method, not for marketing.
+
 ## [1.1.0] — 2026-10-06
 
 ### Added

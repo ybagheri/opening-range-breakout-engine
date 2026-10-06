@@ -153,3 +153,29 @@ def test_poll_once_idempotent(tmp_path):
     second = eng.poll_once()
     assert second == []  # nothing new: no reprocessing
     assert eng.strategy.get_or("TST") is not None
+
+
+def test_backtest_filter_permissive_matches_disabled():
+    """Regression: a permissive filter must not silently kill all signals
+    (backtest must actually pass OR mean volume into the detector)."""
+    import pandas as pd
+
+    from orb_engine.backtest.engine import BacktestEngine
+    idx = pd.date_range("2024-01-02 09:30", periods=30, freq="5min", tz="America/New_York")
+    rows = []
+    for i in range(30):
+        if i < 3:
+            rows.append((100, 101, 99, 100, 100))
+        elif i == 5:
+            rows.append((100, 106, 99, 104, 500))
+        else:
+            rows.append((104, 112, 103, 110, 100))
+    df = pd.DataFrame(rows, columns=["open", "high", "low", "close", "volume"], index=idx)
+    off = S(breakeven_enabled=False)
+    on = S(breakeven_enabled=False, volume_filter_enabled=True, volume_min_rvol=0.01)
+    t_off = BacktestEngine(off).run({"TST": df}).trades
+    t_on = BacktestEngine(on).run({"TST": df}).trades
+    assert len(t_off) >= 1
+    assert len(t_on) == len(t_off)
+    strict = S(breakeven_enabled=False, volume_filter_enabled=True, volume_min_rvol=999.0)
+    assert BacktestEngine(strict).run({"TST": df}).trades == []
