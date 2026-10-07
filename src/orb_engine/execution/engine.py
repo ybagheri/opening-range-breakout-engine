@@ -125,12 +125,40 @@ class ORBEngine:
                 lines.append(f"{sym} OR: -- WAITING")
         return "\n".join(lines)
 
+    def poll_ticks(self, timestamp=None) -> list[dict]:
+        """One tick-management sweep: route live quotes through ``on_tick``.
+
+        Pulls ``current_price`` per symbol and runs force-close + direction-aware
+        BE/trailing management (LONG exits at bid, SHORT at ask). Quote failures
+        are logged and skipped — a missing quote must never kill the loop.
+        Returns per-symbol action dicts.
+        """
+        from datetime import timezone
+
+        ts = timestamp if timestamp is not None else datetime.now(timezone.utc)
+        results: list[dict] = []
+        for symbol in self.s.symbols:
+            try:
+                bid, ask = self.broker.current_price(symbol)
+            except Exception as e:  # noqa: BLE001 - quotes are best-effort
+                log.warning("no quote for %s: %s", symbol, e)
+                continue
+            try:
+                out = self.on_tick(symbol, bid, ask, ts)
+            except Exception:
+                log.exception("tick management failed for %s (continuing)", symbol)
+                continue
+            results.append({"symbol": symbol, **out})
+        return results
+
     def poll_once(self, timeframe: str = "M5", lookback: int = 20) -> list[dict]:
         """One live iteration: pull recent bars per symbol, feed only NEW fully-closed
         bars to ``on_bar`` (the last/forming bar is always skipped — never trade off
-        incomplete data), then run breakeven management on open positions.
+        incomplete data), then run tick management on all symbols.
 
-        Requires a broker supporting ``get_rates`` (MT5Broker). Returns per-bar results.
+        Requires a broker supporting ``get_rates`` (MT5Broker) for the bar leg;
+        the tick leg (``poll_ticks``) runs regardless so force-close + direction-aware
+        BE/trailing still apply when rates are unavailable. Returns per-bar results.
         """
         from orb_engine.data.models import bars_from_df
 
@@ -153,15 +181,9 @@ class ORBEngine:
                     continue  # idempotent: never reprocess a bar
                 results.append(self.on_bar(bar))
                 self._last_bar_time[symbol] = bar.timestamp
-        # breakeven management on all open strategy positions
-        prices: dict[int, float] = {}
-        for pos in self.broker.open_positions(magic=self.s.magic):
-            try:
-                bid, _ = self.broker.current_price(pos.symbol)
-                prices[pos.ticket] = bid
-            except RuntimeError as e:
-                log.warning("no quote for breakeven check: %s", e)
-        self.tm.manage_open(prices)
+        # tick management on all symbols: force-close + direction-aware
+        # BE/trailing via on_tick (LONG at bid, SHORT at ask).
+        self.poll_ticks()
         return results
 
     def run_live_poll(self, poll_seconds: int = 30, timeframe: str = "M5",

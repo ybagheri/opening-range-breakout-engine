@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.8.1] — 2026-10-07
+
+### Added — bar-loop tick sweep (live-gap hardening follow-up)
+- New `ORBEngine.poll_ticks`: one management sweep routing live `current_price`
+  quotes through `on_tick` for every symbol — force-close + direction-aware
+  BE/trailing (LONG at bid, SHORT at ask). Quote failures log-and-skip;
+  management failures log-and-continue; neither ever kills the loop.
+- `poll_once` now ends with `poll_ticks()` instead of its old bid-only
+  `manage_open` call, so SHORT positions get ask-side management even on the
+  bar path. Docstring updated (tick leg runs even when rates are unavailable).
+- 3 new tests (78 total): per-symbol sweep incl. BE move, bad-quote skip,
+  `poll_once` tick-management for SHORT at ask.
+
 ## [1.8.0] — 2026-10-06
 
 ### Added — tick-level BE/trailing management (live-gap hardening)

@@ -70,3 +70,69 @@ def test_on_tick_force_close_takes_precedence(tmp_path):
     out = e.on_tick("TST", 200.0, 200.1, ts)  # would manage, but force-close wins
     assert out["action"] == "force_close"
     assert e.broker.open_positions() == []
+
+
+def test_poll_ticks_manages_each_symbol(tmp_path):
+    from orb_engine.broker.paper import PaperBroker
+
+    e = _engine(state_db=str(tmp_path / "s.db"), journal_db=str(tmp_path / "j.db"))
+    assert isinstance(e.broker, MockBroker)
+    pos = _long(e.broker)
+    pos.magic = e.s.magic
+    # MockBroker quotes 100.0/100.02 — far below BE trigger at +1R (110)
+    ts = datetime(2024, 1, 2, 10, 0, tzinfo=Z)
+    out = e.poll_ticks(ts)
+    assert out == [{"symbol": "TST", "action": "none"}]
+    # move quote above trigger via PaperBroker-backed engine
+    infos = {"TST": SymbolInfo("TST", 2, 0.01, 0.01, 1.0, 1, 0.01, 100, 0.01)}
+    base = dict(timezone="America/New_York", or_start="09:30", or_end="09:45",
+                trading_start="09:45", trading_end="11:30", symbols=("TST",),
+                dry_run=False, breakeven_enabled=True, breakeven_trigger_r=1.0,
+                trail_enabled=False, state_db=str(tmp_path / "s2.db"),
+                journal_db=str(tmp_path / "j2.db"))
+    pb = PaperBroker(10000.0, dict(infos))
+    e2 = ORBEngine(Settings(**base), pb)
+    pb._ticket += 1
+    p2 = Position(pb._ticket, "TST", Direction.LONG, 1.0, 100.0, 90.0, 120.0,
+                  e2.s.magic, "ORB_ENGINE", "2024-01-02")
+    pb._positions.append(p2)
+    pb.set_quote("TST", 110.0, 110.1)
+    out2 = e2.poll_ticks(ts)
+    assert out2[0]["action"] == "managed"
+    assert pb.open_positions()[0].stop_loss == 100.0
+
+
+def test_poll_ticks_skips_bad_quotes(tmp_path):
+    class FlakyBroker(MockBroker):
+        def current_price(self, symbol):
+            raise RuntimeError("no tick")
+
+    base = dict(timezone="America/New_York", or_start="09:30", or_end="09:45",
+                trading_start="09:45", trading_end="11:30", symbols=("TST",),
+                state_db=str(tmp_path / "s.db"), journal_db=str(tmp_path / "j.db"))
+    e = ORBEngine(Settings(**base), FlakyBroker(10000.0, dict(INFO)))
+    ts = datetime(2024, 1, 2, 10, 0, tzinfo=Z)
+    assert e.poll_ticks(ts) == []  # logged + skipped, never raises
+
+
+def test_poll_once_runs_tick_management(tmp_path):
+    # SHORT must be managed at ASK: bid alone would not trigger,
+    # ask deep in profit must move the stop.
+    from orb_engine.broker.paper import PaperBroker
+
+    infos = {"TST": SymbolInfo("TST", 2, 0.01, 0.01, 1.0, 1, 0.01, 100, 0.01)}
+    base = dict(timezone="America/New_York", or_start="09:30", or_end="09:45",
+                trading_start="09:45", trading_end="11:30", symbols=("TST",),
+                dry_run=True, breakeven_enabled=True, breakeven_trigger_r=1.0,
+                trail_enabled=False, state_db=str(tmp_path / "s.db"),
+                journal_db=str(tmp_path / "j.db"))
+    pb = PaperBroker(10000.0, dict(infos))
+    e = ORBEngine(Settings(**base), pb)
+    pb._ticket += 1
+    pb._positions.append(Position(pb._ticket, "TST", Direction.SHORT, 1.0,
+                                  100.0, 110.0, 80.0, e.s.magic,
+                                  "ORB_ENGINE", "2024-01-02"))
+    pb.set_quote("TST", 105.0, 90.0)  # ask at +1R triggers BE
+    # no rates support on PaperBroker -> bar loop skips, tick sweep still runs
+    e.poll_once()
+    assert pb.open_positions()[0].stop_loss == 100.0
