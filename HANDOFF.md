@@ -1,7 +1,7 @@
 # Project Handoff
 
 Current Phase: Phase 13 — Documentation and final audit
-Status: v1.8.1 (bar-loop tick sweep via poll_ticks; tick work committed)
+Status: v1.8.2 (decoupled fast tick cadence in run_live_poll; clean tree)
 
 Completed: Phases 1–13 (all boxes in ROADMAP.md checked).
 
@@ -17,7 +17,11 @@ Implemented:
   with startup recovery + force-close + per-tick BE/trailing management).
 - Persistence (SQLite state + journal), reporting (config-hash reports), CLI (6 commands).
 
-Tests: `pytest` — 78 passed, 5 MT5-terminal tests skip without a terminal. `ruff`/`mypy` clean.
+Tests: `pytest` — 81 passed, 5 MT5-terminal tests skip without a terminal. `ruff`/`mypy` clean.
+### v1.8.2 additions
+- `TICK_POLL_SECONDS` (default 5.0s): `run_live_poll` interleaves slow bar polls
+  with a fast `poll_ticks` sweep; split `poll_once` into `_poll_bars` + tick leg.
+  3 new tests in `tests/unit/test_tick.py`.
 ### v1.8.1 additions
 - `ORBEngine.poll_ticks` sweeps every symbol's live quote through `on_tick`
   (force-close + direction-aware BE/trailing); `poll_once` ends with it instead

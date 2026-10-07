@@ -73,6 +73,7 @@ class Settings:
     breakeven_trigger_r: float = 1.0
     breakeven_buffer_points: float = 0.0
     max_spread_points: float = 0.0
+    tick_poll_seconds: float = 5.0  # fast BE/trailing + force-close cadence inside run_live_poll
     dry_run: bool = True
     paper_mode: bool = True
     backtest_spread_points: float = 2.0
@@ -157,6 +158,7 @@ def load_settings() -> Settings:
         breakeven_trigger_r=_get_float("BREAK_EVEN_TRIGGER_R", 1.0),
         breakeven_buffer_points=_get_float("BREAK_EVEN_BUFFER_POINTS", 0.0),
         max_spread_points=_get_float("MAX_SPREAD_POINTS", 0.0),
+        tick_poll_seconds=_get_float("TICK_POLL_SECONDS", 5.0),
         dry_run=_get_bool("DRY_RUN", True),
         paper_mode=_get_bool("PAPER_MODE", True),
         backtest_spread_points=_get_float("BACKTEST_SPREAD_POINTS", 2.0),
@@ -205,6 +207,8 @@ def validate_settings(s: Settings) -> list[str]:
         errors.append(f"Invalid time format: {e}")
     if s.max_trades_per_symbol_per_day < 1:
         errors.append("MAX_TRADES_PER_SYMBOL_PER_DAY must be >= 1")
+    if s.tick_poll_seconds <= 0:
+        errors.append(f"TICK_POLL_SECONDS must be > 0, got {s.tick_poll_seconds}")
     if s.intrabar_policy not in ("conservative", "optimistic", "stop_first", "target_first"):
         errors.append(f"Unknown intrabar policy: {s.intrabar_policy}")
     for sym, pt in s.point_overrides.items():

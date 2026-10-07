@@ -152,13 +152,23 @@ class ORBEngine:
         return results
 
     def poll_once(self, timeframe: str = "M5", lookback: int = 20) -> list[dict]:
-        """One live iteration: pull recent bars per symbol, feed only NEW fully-closed
-        bars to ``on_bar`` (the last/forming bar is always skipped — never trade off
-        incomplete data), then run tick management on all symbols.
+        """One live iteration: new closed bars via ``_poll_bars`` then tick management.
 
         Requires a broker supporting ``get_rates`` (MT5Broker) for the bar leg;
         the tick leg (``poll_ticks``) runs regardless so force-close + direction-aware
         BE/trailing still apply when rates are unavailable. Returns per-bar results.
+        """
+        results = self._poll_bars(timeframe, lookback)
+        # tick management on all symbols: force-close + direction-aware
+        # BE/trailing via on_tick (LONG at bid, SHORT at ask).
+        self.poll_ticks()
+        return results
+
+    def _poll_bars(self, timeframe: str = "M5", lookback: int = 20) -> list[dict]:
+        """Pull recent bars per symbol, feed only NEW fully-closed bars to ``on_bar``.
+
+        The last/forming bar is always skipped — never trade off incomplete data.
+        Idempotent: never reprocesses a bar. Returns per-bar results.
         """
         from orb_engine.data.models import bars_from_df
 
@@ -181,28 +191,40 @@ class ORBEngine:
                     continue  # idempotent: never reprocess a bar
                 results.append(self.on_bar(bar))
                 self._last_bar_time[symbol] = bar.timestamp
-        # tick management on all symbols: force-close + direction-aware
-        # BE/trailing via on_tick (LONG at bid, SHORT at ask).
-        self.poll_ticks()
         return results
 
     def run_live_poll(self, poll_seconds: int = 30, timeframe: str = "M5",
                       max_iters: int | None = None) -> None:
-        """Blocking live loop. Use DRY_RUN=true until the full path is proven on demo."""
+        """Blocking live loop. Use DRY_RUN=true until the full path is proven on demo.
+
+        Two cadences: slow ``poll_seconds`` bar polls (new closed bars) plus a fast
+        ``tick_poll_seconds`` tick sweep (force-close + BE/trailing) every iteration.
+        The fast leg never raises — quote/management failures log and continue —
+        so a stale quote feed cannot kill bar processing.
+        """
         self.startup_recovery()
-        log.info("live poll start tf=%s every=%ss dry_run=%s", timeframe, poll_seconds,
-                 self.s.dry_run)
+        tick_every = self.s.tick_poll_seconds
+        log.info("live poll start tf=%s bar_every=%ss tick_every=%ss dry_run=%s",
+                 timeframe, poll_seconds, tick_every, self.s.dry_run)
+        next_bar = time.monotonic()  # bar poll due immediately on start
         it = 0
         while True:
+            now = time.monotonic()
+            if now >= next_bar:
+                try:
+                    self._poll_bars(timeframe)
+                    print(self.status(), flush=True)
+                except Exception:
+                    log.exception("bar poll failed (continuing)")
+                next_bar = now + poll_seconds
             try:
-                self.poll_once(timeframe)
-                print(self.status(), flush=True)
+                self.poll_ticks()  # fast leg: never raises by contract
             except Exception:
-                log.exception("poll iteration failed (continuing)")
+                log.exception("tick sweep failed (continuing)")
             it += 1
             if max_iters is not None and it >= max_iters:
                 break
-            time.sleep(poll_seconds)
+            time.sleep(min(tick_every, max(0.0, next_bar - time.monotonic())) or tick_every)
 
     def run_loop(self, poll_seconds: int = 5, max_iters: int | None = None) -> None:
         self.startup_recovery()

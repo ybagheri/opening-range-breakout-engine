@@ -136,3 +136,61 @@ def test_poll_once_runs_tick_management(tmp_path):
     # no rates support on PaperBroker -> bar loop skips, tick sweep still runs
     e.poll_once()
     assert pb.open_positions()[0].stop_loss == 100.0
+
+
+def test_tick_poll_seconds_validated(tmp_path):
+    from orb_engine.config.settings import validate_settings
+
+    assert validate_settings(Settings(tick_poll_seconds=0.0))
+    assert validate_settings(Settings(tick_poll_seconds=-1.0))
+    assert not validate_settings(Settings(tick_poll_seconds=2.5))
+
+
+def test_run_live_poll_sweeps_ticks_between_bars(tmp_path, monkeypatch):
+    from orb_engine.broker.paper import PaperBroker
+
+    infos = {"TST": SymbolInfo("TST", 2, 0.01, 0.01, 1.0, 1, 0.01, 100, 0.01)}
+    base = dict(timezone="America/New_York", or_start="09:30", or_end="09:45",
+                trading_start="09:45", trading_end="11:30", symbols=("TST",),
+                dry_run=True, breakeven_enabled=True, breakeven_trigger_r=1.0,
+                trail_enabled=False, tick_poll_seconds=5.0,
+                state_db=str(tmp_path / "s.db"), journal_db=str(tmp_path / "j.db"))
+    pb = PaperBroker(10000.0, dict(infos))
+    e = ORBEngine(Settings(**base), pb)
+    calls: list[str] = []
+    orig_bars = e._poll_bars
+    orig_ticks = e.poll_ticks
+
+    def fake_bars(*a, **k):
+        calls.append("bars")
+        return orig_bars(*a, **k)
+
+    def fake_ticks(*a, **k):
+        calls.append("ticks")
+        return orig_ticks(*a, **k)
+
+    monkeypatch.setattr(e, "_poll_bars", fake_bars)
+    monkeypatch.setattr(e, "poll_ticks", fake_ticks)
+    monkeypatch.setattr("orb_engine.execution.engine.time.sleep", lambda s: None)
+    e.run_live_poll(poll_seconds=60, max_iters=3)
+    assert calls[0] == "bars"  # bar poll due immediately on start
+    assert calls.count("ticks") == 3  # fast leg runs every iteration
+    assert calls.count("bars") == 1  # slow leg waits out poll_seconds
+
+
+def test_run_live_poll_survives_tick_failure(tmp_path, monkeypatch):
+    from orb_engine.broker.paper import PaperBroker
+
+    infos = {"TST": SymbolInfo("TST", 2, 0.01, 0.01, 1.0, 1, 0.01, 100, 0.01)}
+    base = dict(timezone="America/New_York", or_start="09:30", or_end="09:45",
+                trading_start="09:45", trading_end="11:30", symbols=("TST",),
+                state_db=str(tmp_path / "s.db"), journal_db=str(tmp_path / "j.db"))
+    e = ORBEngine(Settings(**base), PaperBroker(10000.0, dict(infos)))
+
+    def boom(*a, **k):
+        raise RuntimeError("quote feed down")
+
+    monkeypatch.setattr(e, "poll_ticks", boom)
+    monkeypatch.setattr(e, "_poll_bars", lambda *a, **k: [])
+    monkeypatch.setattr("orb_engine.execution.engine.time.sleep", lambda s: None)
+    e.run_live_poll(poll_seconds=60, max_iters=2)  # must not raise

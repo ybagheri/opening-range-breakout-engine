@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.8.2] — 2026-10-07
+
+### Added — decoupled fast tick cadence (live-gap hardening)
+- New `TICK_POLL_SECONDS` setting (default 5.0s, validated > 0): `run_live_poll`
+  now runs two cadences — slow bar polls (`poll_seconds`, new closed bars) plus
+  a fast `poll_ticks` sweep (force-close + direction-aware BE/trailing) every
+  iteration. Stops react in seconds, not on the 30s bar timer.
+- `poll_once` split into `_poll_bars` (bar leg) + `poll_ticks` (tick leg);
+  `run_live_poll` drives both via a monotonic deadline loop (bar poll due
+  immediately on start; fast leg can never kill the bar leg).
+- 3 new tests (81 total): cadence validation, bars-once/ticks-every-iteration
+  ordering, tick-failure survival.
+
 ## [1.8.1] — 2026-10-07
 
 ### Added — bar-loop tick sweep (live-gap hardening follow-up)
